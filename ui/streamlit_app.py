@@ -17,22 +17,35 @@ query = st.text_input(
 )
 
 # Run button
+# Run button
 if st.button("Run"):
-    response = requests.post(
-        "https://ap-invoice-triage.onrender.com/triage",
-        json={"question": query}
-    ).json()
+    try:
+        r = requests.post(
+            "https://ap-invoice-triage.onrender.com/triage",
+            json={"question": query},
+            timeout=30
+        )
 
-    st.subheader("📌 Duplicate Invoices")
-    if response["duplicates"]:
-        st.dataframe(pd.DataFrame(response["duplicates"]), use_container_width=True)
-    else:
-        st.success("No duplicate invoices found")
+        st.write("Status:", r.status_code)
 
-    st.subheader("💰 High Value Invoices")
-    if response["high_value"]:
-        st.dataframe(pd.DataFrame(response["high_value"]), use_container_width=True)
-    else:
-        st.success("No high value invoices found")
+        if not r.ok:
+            st.error(r.text)
+        else:
+            response = r.json()
 
-    st.info(f"Why flagged: {response['reason']}")
+            st.subheader("📌 Duplicate Invoices")
+            if response.get("duplicates"):
+                st.dataframe(pd.DataFrame(response["duplicates"]), use_container_width=True)
+            else:
+                st.success("No duplicate invoices found")
+
+            st.subheader("💰 High Value Invoices")
+            if response.get("high_value"):
+                st.dataframe(pd.DataFrame(response["high_value"]), use_container_width=True)
+            else:
+                st.success("No high value invoices found")
+
+            st.info(f"Why flagged: {response.get('reason', '')}")
+
+    except Exception as e:
+        st.error(str(e))
