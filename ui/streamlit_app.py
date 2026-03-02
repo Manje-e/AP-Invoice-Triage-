@@ -20,7 +20,7 @@ st.markdown("""
 section[data-testid="stMain"] { padding: 0 !important; }
 #MainMenu { display: none !important; }
 footer { display: none !important; }
-iframe { border: none !important; }
+iframe { border: none !important; background: #0a0d14 !important; }
 </style>
 """, unsafe_allow_html=True)
 
