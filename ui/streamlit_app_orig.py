@@ -11,14 +11,12 @@ st.set_page_config(
 )
 
 # ── FastAPI URL ───────────────────────────────────────────────────────────────
-FASTAPI_URL = "https://your-app.onrender.com"  # 🔁 Replace with your Render URL
+FASTAPI_URL = "https://ap-invoice-triage.onrender.com/triage"  # 🔁  Render URL
 
 # ── Global CSS ────────────────────────────────────────────────────────────────
-st.markdown(
-"""<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">""",
-unsafe_allow_html=True
-)
-st.markdown("""<style>
+st.markdown("""
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
 html, body, [data-testid="stAppViewContainer"] {
     background-color: #0a0d14 !important;
     color: #e2e8f0 !important;
@@ -122,11 +120,13 @@ footer { display: none !important; }
 .empty-icon { font-size: 36px; opacity: 0.3; }
 .empty-text { font-size: 12px; font-family: 'DM Mono', monospace; text-align: center; line-height: 1.6; }
 
+/* Scrollbar */
 ::-webkit-scrollbar { width: 3px; height: 3px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: #1e2740; border-radius: 3px; }
 [data-testid="column"] { padding: 0 !important; }
-</style>""", unsafe_allow_html=True)
+</style>
+""", unsafe_allow_html=True)
 
 # ── Session state ─────────────────────────────────────────────────────────────
 if "batch_loaded" not in st.session_state:
