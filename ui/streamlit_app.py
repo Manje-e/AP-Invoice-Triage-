@@ -31,6 +31,17 @@ html, body, [data-testid="stAppViewContainer"] {
 footer { display: none !important; }
 [data-testid="stAppViewContainer"] > section > div { padding-top: 0 !important; }
 [data-testid="block-container"] { padding: 0 !important; max-width: 100% !important; }
+            
+[data-testid="stAppViewContainer"] {
+    padding: 0 !important;
+}
+section[data-testid="stMain"] {
+    padding: 0 !important;
+}
+[data-testid="stMainBlockContainer"] {
+    padding: 0 !important;
+    max-width: 100% !important;
+}
 
 /* Header */
 .ap-header {
@@ -333,8 +344,10 @@ with left_col:
                         st.session_state.right_panel_view = "result"
                     st.rerun()
 
-        user_input = st.chat_input("Ask about your invoices...")
-        if user_input:
+        user_input = st.text_input("", placeholder="Ask about your invoices...", label_visibility="collapsed")
+        send = st.button("Send", key="send_btn")
+                    
+        if send and user_input:
             st.session_state.suggestions_hidden = True
             st.session_state.messages.append({"role": "user", "text": user_input})
             with st.spinner("Thinking..."):
