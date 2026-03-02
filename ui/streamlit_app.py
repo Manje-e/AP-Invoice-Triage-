@@ -271,11 +271,12 @@ def render_charts(chart_data):
 # ── RENDER ─────────────────────────────────────────────────────────────────────
 render_header()
 
-left_col, right_col = st.columns([1, 2.5], gap="small")
+left_col, right_col = st.columns([1, 2.8], gap="small")
 
 # ── LEFT PANEL ────────────────────────────────────────────────────────────────
 with left_col:
-
+    st.markdown('<div style="background:#111520; border-right:1px solid #1e2740; padding:16px; min-height:100vh;">', unsafe_allow_html=True)
+    
     # Load button
     if st.button("⬇  Load Invoice Batch"):
         with st.spinner("Loading..."):
@@ -344,6 +345,7 @@ with left_col:
                 st.session_state.chart_data = result.get("chart_data")
                 st.session_state.right_panel_view = "result"
             st.rerun()
+    st.markdown('</div>', unsafe_allow_html=True)
 
 # ── RIGHT PANEL ───────────────────────────────────────────────────────────────
 with right_col:
