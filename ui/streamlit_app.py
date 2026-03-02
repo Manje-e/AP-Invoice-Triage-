@@ -1,6 +1,5 @@
 import streamlit as st
-import requests
-import pandas as pd
+import streamlit.components.v1 as components
 
 # ── Page config ───────────────────────────────────────────────────────────────
 st.set_page_config(
@@ -10,342 +9,403 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
-# ── FastAPI URL ───────────────────────────────────────────────────────────────
-FASTAPI_URL = "https://your-app.onrender.com"  # 🔁 Replace with your Render URL
-
-# ── Fonts ─────────────────────────────────────────────────────────────────────
-st.markdown(
-    """<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">""",
-    unsafe_allow_html=True
-)
-
-# ── CSS ───────────────────────────────────────────────────────────────────────
-st.markdown("""<style>
-html, body { margin: 0; padding: 0; background: #0a0d14 !important; }
-
-[data-testid="stAppViewContainer"] {
-    background: #0a0d14 !important;
-    padding: 0 !important;
-}
+# ── Hide all Streamlit UI chrome ──────────────────────────────────────────────
+st.markdown("""
+<style>
 [data-testid="stHeader"] { display: none !important; }
 [data-testid="stSidebar"] { display: none !important; }
 [data-testid="stDecoration"] { display: none !important; }
-[data-testid="stMainBlockContainer"] {
-    padding: 0 !important;
-    max-width: 100% !important;
-}
-[data-testid="block-container"] {
-    padding: 0 !important;
-    max-width: 100% !important;
-}
+[data-testid="stMainBlockContainer"] { padding: 0 !important; max-width: 100% !important; }
+[data-testid="block-container"] { padding: 0 !important; max-width: 100% !important; }
 section[data-testid="stMain"] { padding: 0 !important; }
 #MainMenu { display: none !important; }
 footer { display: none !important; }
-
-.ap-header {
-    display: flex; align-items: center; justify-content: space-between;
-    padding: 0 24px; height: 52px;
-    border-bottom: 1px solid #1e2740;
-    background: #111520;
-    width: 100%;
-}
-.ap-logo { display: flex; align-items: center; gap: 10px; }
-.ap-logo-icon {
-    width: 28px; height: 28px;
-    background: linear-gradient(135deg, #3b82f6, #6366f1);
-    border-radius: 6px; display: flex;
-    align-items: center; justify-content: center; font-size: 14px;
-}
-.ap-logo-text { font-family: 'Syne', sans-serif; font-weight: 700; font-size: 15px; color: #e2e8f0; }
-.ap-logo-text span { color: #3b82f6; }
-.ap-status { display: flex; align-items: center; gap: 8px; }
-.ap-dot {
-    width: 7px; height: 7px; border-radius: 50%;
-    background: #10b981; box-shadow: 0 0 6px #10b981;
-    display: inline-block; animation: blink 2s infinite;
-}
-@keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
-.ap-status-text { font-size: 11px; color: #64748b; font-family: 'DM Mono', monospace; }
-
-.stButton > button {
-    width: 100% !important;
-    background: linear-gradient(135deg, #3b82f6, #6366f1) !important;
-    color: white !important; border: none !important;
-    border-radius: 8px !important; padding: 10px 16px !important;
-    font-family: 'Syne', sans-serif !important; font-weight: 600 !important;
-    font-size: 13px !important; cursor: pointer !important;
-}
-.stButton > button:hover {
-    opacity: 0.9 !important;
-    box-shadow: 0 4px 20px rgba(59,130,246,0.3) !important;
-}
-
-.batch-box {
-    margin-top: 12px; padding: 10px 12px;
-    background: #161c2e; border-radius: 8px; border: 1px solid #1e2740;
-}
-.batch-row { display: flex; justify-content: space-between; padding: 3px 0; }
-.bl { font-size: 11px; color: #64748b; font-family: 'DM Mono', monospace; }
-.bv { font-size: 11px; font-family: 'DM Mono', monospace; font-weight: 500; color: #e2e8f0; }
-.bvg { font-size: 11px; font-family: 'DM Mono', monospace; font-weight: 500; color: #10b981; }
-.bvo { font-size: 11px; font-family: 'DM Mono', monospace; font-weight: 500; color: #f59e0b; }
-
-.chat-u { display: flex; justify-content: flex-end; margin: 4px 0; }
-.chat-a { display: flex; justify-content: flex-start; margin: 4px 0; }
-.bu {
-    background: linear-gradient(135deg, #3b82f6, #6366f1);
-    color: white; padding: 8px 12px;
-    border-radius: 10px 10px 3px 10px;
-    font-size: 12px; line-height: 1.5; max-width: 85%;
-}
-.ba {
-    background: #161c2e; border: 1px solid #1e2740;
-    color: #e2e8f0; padding: 8px 12px;
-    border-radius: 10px 10px 10px 3px;
-    font-size: 12px; line-height: 1.5; max-width: 85%;
-}
-
-.sug-label {
-    font-size: 10px; color: #334155; font-family: 'DM Mono', monospace;
-    text-transform: uppercase; letter-spacing: 0.08em;
-    margin: 8px 0 4px 0;
-}
-
-.stTextInput input {
-    background: #161c2e !important;
-    border: 1px solid #1e2740 !important;
-    border-radius: 8px !important;
-    color: #e2e8f0 !important;
-    font-size: 12px !important;
-    font-family: 'DM Sans', sans-serif !important;
-}
-.stTextInput input:focus {
-    border-color: #3b82f6 !important;
-    box-shadow: none !important;
-}
-
-.cards-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 14px; }
-.card { background: #111520; border: 1px solid #1e2740; border-radius: 10px; padding: 12px; }
-.card-label { font-size: 10px; color: #64748b; font-family: 'DM Mono', monospace; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 4px; }
-.cv-blue { font-family: 'Syne', sans-serif; font-size: 22px; font-weight: 700; color: #3b82f6; }
-.cv-orange { font-family: 'Syne', sans-serif; font-size: 22px; font-weight: 700; color: #f59e0b; }
-.cv-green { font-family: 'Syne', sans-serif; font-size: 22px; font-weight: 700; color: #10b981; }
-.card-sub { font-size: 10px; color: #64748b; margin-top: 2px; }
-
-.tw { background: #111520; border: 1px solid #1e2740; border-radius: 10px; overflow: hidden; margin-bottom: 14px; }
-.th { display: flex; justify-content: space-between; align-items: center; padding: 10px 14px; border-bottom: 1px solid #1e2740; }
-.tt { font-size: 11px; font-family: 'Syne', sans-serif; font-weight: 600; color: #e2e8f0; text-transform: uppercase; letter-spacing: 0.06em; }
-.tc { font-size: 10px; color: #64748b; font-family: 'DM Mono', monospace; }
-
-.empty-state { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 60vh; gap: 10px; color: #334155; }
-.empty-icon { font-size: 36px; opacity: 0.3; }
-.empty-text { font-size: 12px; font-family: 'DM Mono', monospace; text-align: center; line-height: 1.6; }
-
-::-webkit-scrollbar { width: 3px; }
-::-webkit-scrollbar-thumb { background: #1e2740; border-radius: 3px; }
-[data-testid="column"] { padding: 0 !important; gap: 0 !important; }
-[data-testid="stVerticalBlock"] { gap: 0.5rem; }
-</style>""", unsafe_allow_html=True)
-
-# ── Session state ─────────────────────────────────────────────────────────────
-if "batch_loaded" not in st.session_state:
-    st.session_state.batch_loaded = False
-if "messages" not in st.session_state:
-    st.session_state.messages = []
-if "right_panel_view" not in st.session_state:
-    st.session_state.right_panel_view = "empty"
-if "batch_info" not in st.session_state:
-    st.session_state.batch_info = {}
-if "table_data" not in st.session_state:
-    st.session_state.table_data = None
-if "chart_data" not in st.session_state:
-    st.session_state.chart_data = None
-if "suggestions_hidden" not in st.session_state:
-    st.session_state.suggestions_hidden = False
-
-# ── API calls ─────────────────────────────────────────────────────────────────
-def api_load_batch():
-    try:
-        r = requests.get(f"{FASTAPI_URL}/load-batch")
-        return r.json()
-    except Exception as e:
-        st.error(f"Could not connect to backend: {e}")
-        return None
-
-def api_ask(question):
-    try:
-        r = requests.post(f"{FASTAPI_URL}/triage", json={"question": question})
-        return r.json()
-    except Exception as e:
-        st.error(f"Could not connect to backend: {e}")
-        return None
-
-# ── Helpers ───────────────────────────────────────────────────────────────────
-def render_summary_cards(info):
-    st.markdown(f"""
-    <div class="cards-row">
-        <div class="card"><div class="card-label">Total Invoices</div><div class="cv-blue">{info.get('total','—')}</div><div class="card-sub">{info.get('period','')}</div></div>
-        <div class="card"><div class="card-label">Flagged</div><div class="cv-orange">{info.get('flagged','—')}</div><div class="card-sub">Need attention</div></div>
-        <div class="card"><div class="card-label">Clear</div><div class="cv-green">{info.get('clear','—')}</div><div class="card-sub">Ready to process</div></div>
-        <div class="card"><div class="card-label">Total Spend</div><div class="cv-blue">{info.get('spend','—')}</div><div class="card-sub">Across all invoices</div></div>
-    </div>
-    """, unsafe_allow_html=True)
-
-def render_table(title, df):
-    if df is None or len(df) == 0:
-        return
-    st.markdown(f"""
-    <div class="tw"><div class="th"><div class="tt">{title}</div><div class="tc">{len(df)} records</div></div></div>
-    """, unsafe_allow_html=True)
-    st.dataframe(df, use_container_width=True, hide_index=True, height=min(35 * len(df) + 38, 350))
-
-def render_charts(chart_data):
-    if not chart_data:
-        return
-    import plotly.graph_objects as go
-    c1, c2 = st.columns(2)
-    if "bar" in chart_data:
-        with c1:
-            b = chart_data["bar"]
-            fig = go.Figure(go.Bar(x=b["labels"], y=b["values"],
-                marker_color=['#3b82f6','#6366f1','#f59e0b','#10b981','#ef4444'],
-                marker=dict(line=dict(width=0))))
-            fig.update_layout(
-                title=dict(text=b.get("title",""), font=dict(size=11, color='#64748b', family='DM Mono')),
-                paper_bgcolor='#111520', plot_bgcolor='#111520',
-                margin=dict(l=10, r=10, t=35, b=10), height=200, showlegend=False,
-                xaxis=dict(tickfont=dict(size=9, color='#64748b'), showgrid=False),
-                yaxis=dict(tickfont=dict(size=9, color='#64748b'), gridcolor='#1e2740'))
-            st.plotly_chart(fig, use_container_width=True, config={'displayModeBar': False})
-    if "pie" in chart_data:
-        with c2:
-            p = chart_data["pie"]
-            fig = go.Figure(go.Pie(labels=p["labels"], values=p["values"],
-                marker_colors=['#f59e0b','#ef4444','#6366f1','#3b82f6','#10b981'],
-                hole=0.55, textinfo='none'))
-            fig.update_layout(
-                title=dict(text=p.get("title",""), font=dict(size=11, color='#64748b', family='DM Mono')),
-                paper_bgcolor='#111520', plot_bgcolor='#111520',
-                margin=dict(l=10, r=10, t=35, b=10), height=200,
-                legend=dict(font=dict(size=9, color='#64748b'), x=0.7))
-            st.plotly_chart(fig, use_container_width=True, config={'displayModeBar': False})
-
-# ── HEADER ────────────────────────────────────────────────────────────────────
-st.markdown("""
-<div class="ap-header">
-    <div class="ap-logo">
-        <div class="ap-logo-icon">⚡</div>
-        <div class="ap-logo-text">AP <span>Triage</span> Agent</div>
-    </div>
-    <div class="ap-status">
-        <span class="ap-dot"></span>
-        <span class="ap-status-text">CONNECTED · SUPABASE</span>
-    </div>
-</div>
+iframe { border: none !important; }
+</style>
 """, unsafe_allow_html=True)
 
-# ── COLUMNS ───────────────────────────────────────────────────────────────────
-left_col, right_col = st.columns([1, 2.8], gap="small")
+# ── FastAPI URL ───────────────────────────────────────────────────────────────
+FASTAPI_URL = "https://your-app.onrender.com"  # 🔁 Replace with your Render URL
 
-# ── LEFT PANEL ────────────────────────────────────────────────────────────────
-with left_col:
-    st.markdown('<div style="background:#111520; border-right:1px solid #1e2740; padding:16px; min-height:100vh;">', unsafe_allow_html=True)
+# ── Full HTML UI ──────────────────────────────────────────────────────────────
+html = f"""
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<style>
+  :root {{
+    --bg: #0a0d14; --surface: #111520; --surface2: #161c2e;
+    --border: #1e2740; --accent: #3b82f6; --accent2: #6366f1;
+    --green: #10b981; --red: #ef4444; --orange: #f59e0b;
+    --text: #e2e8f0; --text-muted: #64748b; --text-dim: #334155;
+  }}
+  * {{ margin: 0; padding: 0; box-sizing: border-box; }}
+  body {{
+    font-family: 'DM Sans', sans-serif;
+    background: var(--bg); color: var(--text);
+    height: 100vh; display: flex; flex-direction: column; overflow: hidden;
+  }}
+  header {{
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 24px; height: 52px;
+    border-bottom: 1px solid var(--border); background: var(--surface); flex-shrink: 0;
+  }}
+  .logo {{ display: flex; align-items: center; gap: 10px; }}
+  .logo-icon {{
+    width: 28px; height: 28px;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 14px;
+  }}
+  .logo-text {{ font-family: 'Syne', sans-serif; font-weight: 700; font-size: 15px; letter-spacing: 0.02em; }}
+  .logo-text span {{ color: var(--accent); }}
+  .header-right {{ display: flex; align-items: center; gap: 8px; }}
+  .status-dot {{
+    width: 7px; height: 7px; border-radius: 50%;
+    background: var(--green); box-shadow: 0 0 6px var(--green); animation: pulse 2s infinite;
+  }}
+  @keyframes pulse {{ 0%, 100% {{ opacity: 1; }} 50% {{ opacity: 0.4; }} }}
+  .status-text {{ font-size: 11px; color: var(--text-muted); font-family: 'DM Mono', monospace; }}
+  .main {{ display: flex; flex: 1; overflow: hidden; }}
+  .left-panel {{
+    width: 300px; flex-shrink: 0;
+    border-right: 1px solid var(--border); background: var(--surface);
+    display: flex; flex-direction: column; overflow: hidden;
+  }}
+  .left-top {{ padding: 16px; border-bottom: 1px solid var(--border); }}
+  .load-btn {{
+    width: 100%; padding: 10px 16px;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    border: none; border-radius: 8px; color: white;
+    font-family: 'Syne', sans-serif; font-weight: 600; font-size: 13px;
+    letter-spacing: 0.04em; cursor: pointer; transition: all 0.2s;
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+  }}
+  .load-btn:hover {{ opacity: 0.9; transform: translateY(-1px); box-shadow: 0 4px 20px rgba(59,130,246,0.3); }}
+  .batch-info {{ margin-top: 12px; padding: 10px 12px; background: var(--surface2); border-radius: 8px; border: 1px solid var(--border); display: none; }}
+  .batch-info.visible {{ display: block; }}
+  .batch-row {{ display: flex; justify-content: space-between; align-items: center; padding: 3px 0; }}
+  .batch-label {{ font-size: 11px; color: var(--text-muted); font-family: 'DM Mono', monospace; }}
+  .batch-value {{ font-size: 11px; color: var(--text); font-family: 'DM Mono', monospace; font-weight: 500; }}
+  .batch-value.flagged {{ color: var(--orange); }}
+  .batch-value.ok {{ color: var(--green); }}
+  .chat-area {{ display: flex; flex-direction: column; padding: 12px; gap: 10px; }}
+  .chat-messages {{ overflow-y: auto; display: flex; flex-direction: column; gap: 10px; max-height: 220px; }}
+  .chat-messages:empty {{ display: none; }}
+  .chat-messages::-webkit-scrollbar {{ width: 3px; }}
+  .chat-messages::-webkit-scrollbar-thumb {{ background: var(--border); border-radius: 3px; }}
+  .suggestions {{ display: flex; flex-direction: column; gap: 6px; padding-top: 4px; }}
+  .suggestion-label {{
+    font-size: 10px; color: var(--text-dim); font-family: 'DM Mono', monospace;
+    text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 2px;
+  }}
+  .suggestion-chip {{
+    padding: 7px 10px; background: transparent;
+    border: 1px solid var(--border); border-radius: 6px;
+    color: var(--text-muted); font-size: 11px; cursor: pointer;
+    transition: all 0.15s; text-align: left;
+  }}
+  .suggestion-chip:hover {{ border-color: var(--accent); color: var(--text); background: rgba(59,130,246,0.05); }}
+  .msg {{ display: flex; flex-direction: column; gap: 2px; animation: fadeIn 0.3s ease; }}
+  @keyframes fadeIn {{ from {{ opacity: 0; transform: translateY(6px); }} to {{ opacity: 1; transform: translateY(0); }} }}
+  .msg.user {{ align-items: flex-end; }}
+  .msg.agent {{ align-items: flex-start; }}
+  .msg-bubble {{ max-width: 85%; padding: 8px 11px; border-radius: 10px; font-size: 12px; line-height: 1.5; }}
+  .msg.user .msg-bubble {{ background: linear-gradient(135deg, var(--accent), var(--accent2)); color: white; border-bottom-right-radius: 3px; }}
+  .msg.agent .msg-bubble {{ background: var(--surface2); border: 1px solid var(--border); color: var(--text); border-bottom-left-radius: 3px; }}
+  .msg-time {{ font-size: 9px; color: var(--text-dim); font-family: 'DM Mono', monospace; padding: 0 4px; }}
+  .chat-input-area {{ display: flex; gap: 6px; padding-top: 8px; border-top: 1px solid var(--border); }}
+  .chat-input {{
+    flex: 1; padding: 8px 12px;
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 8px; color: var(--text); font-size: 12px;
+    font-family: 'DM Sans', sans-serif; outline: none; transition: border-color 0.2s;
+  }}
+  .chat-input:focus {{ border-color: var(--accent); }}
+  .chat-input::placeholder {{ color: var(--text-dim); }}
+  .chat-input:disabled {{ opacity: 0.4; cursor: not-allowed; }}
+  .send-btn {{
+    width: 34px; height: 34px; background: var(--accent);
+    border: none; border-radius: 8px; color: white;
+    cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.2s;
+  }}
+  .send-btn:hover {{ background: var(--accent2); }}
+  .send-btn:disabled {{ opacity: 0.4; cursor: not-allowed; }}
+  .right-panel {{ flex: 1; display: flex; flex-direction: column; overflow: hidden; background: var(--bg); }}
+  .right-panel-inner {{ flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 14px; }}
+  .right-panel-inner::-webkit-scrollbar {{ width: 3px; }}
+  .right-panel-inner::-webkit-scrollbar-thumb {{ background: var(--border); border-radius: 3px; }}
+  .empty-state {{ flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; color: var(--text-dim); }}
+  .empty-icon {{ font-size: 36px; opacity: 0.3; }}
+  .empty-text {{ font-size: 12px; font-family: 'DM Mono', monospace; text-align: center; line-height: 1.6; }}
+  .summary-cards {{ display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; animation: fadeIn 0.4s ease; }}
+  .card {{ background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 12px; display: flex; flex-direction: column; gap: 4px; }}
+  .card-label {{ font-size: 10px; color: var(--text-muted); font-family: 'DM Mono', monospace; text-transform: uppercase; letter-spacing: 0.06em; }}
+  .card-value {{ font-family: 'Syne', sans-serif; font-size: 22px; font-weight: 700; }}
+  .card-value.blue {{ color: var(--accent); }}
+  .card-value.orange {{ color: var(--orange); }}
+  .card-value.green {{ color: var(--green); }}
+  .card-sub {{ font-size: 10px; color: var(--text-muted); }}
+  .table-wrap {{ background: var(--surface); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; animation: fadeIn 0.4s ease; }}
+  .table-header-bar {{ display: flex; justify-content: space-between; align-items: center; padding: 10px 14px; border-bottom: 1px solid var(--border); }}
+  .table-title {{ font-size: 11px; font-family: 'Syne', sans-serif; font-weight: 600; color: var(--text); text-transform: uppercase; letter-spacing: 0.06em; }}
+  .table-count {{ font-size: 10px; color: var(--text-muted); font-family: 'DM Mono', monospace; }}
+  table {{ width: 100%; border-collapse: collapse; font-size: 11px; }}
+  thead th {{ padding: 8px 12px; text-align: left; font-size: 10px; color: var(--text-muted); font-family: 'DM Mono', monospace; text-transform: uppercase; letter-spacing: 0.06em; border-bottom: 1px solid var(--border); background: var(--surface2); }}
+  tbody tr {{ border-bottom: 1px solid var(--border); transition: background 0.15s; }}
+  tbody tr:last-child {{ border-bottom: none; }}
+  tbody tr:hover {{ background: var(--surface2); }}
+  tbody td {{ padding: 8px 12px; color: var(--text); font-size: 11px; }}
+  .badge {{ display: inline-flex; align-items: center; padding: 2px 7px; border-radius: 4px; font-size: 10px; font-family: 'DM Mono', monospace; font-weight: 500; }}
+  .badge-red {{ background: rgba(239,68,68,0.15); color: var(--red); }}
+  .badge-orange {{ background: rgba(245,158,11,0.15); color: var(--orange); }}
+  .badge-blue {{ background: rgba(59,130,246,0.15); color: var(--accent); }}
+  .badge-green {{ background: rgba(16,185,129,0.15); color: var(--green); }}
+  .badge-purple {{ background: rgba(99,102,241,0.15); color: var(--accent2); }}
+  .sev-high {{ color: var(--red); font-weight: 500; }}
+  .sev-med {{ color: var(--orange); font-weight: 500; }}
+  .sev-low {{ color: var(--green); font-weight: 500; }}
+  .charts-row {{ display: grid; grid-template-columns: 1fr 1fr; gap: 12px; animation: fadeIn 0.5s ease; }}
+  .chart-box {{ background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 14px; }}
+  .chart-title {{ font-size: 10px; color: var(--text-muted); font-family: 'DM Mono', monospace; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 10px; }}
+  .chart-container {{ position: relative; height: 160px; }}
+  .typing {{ display: flex; gap: 3px; padding: 8px 11px; background: var(--surface2); border: 1px solid var(--border); border-radius: 10px; border-bottom-left-radius: 3px; width: fit-content; }}
+  .typing span {{ width: 5px; height: 5px; background: var(--text-muted); border-radius: 50%; animation: bounce 1.2s infinite; }}
+  .typing span:nth-child(2) {{ animation-delay: 0.2s; }}
+  .typing span:nth-child(3) {{ animation-delay: 0.4s; }}
+  @keyframes bounce {{ 0%, 80%, 100% {{ transform: translateY(0); opacity: 0.4; }} 40% {{ transform: translateY(-4px); opacity: 1; }} }}
+</style>
+</head>
+<body>
+<header>
+  <div class="logo">
+    <div class="logo-icon">⚡</div>
+    <div class="logo-text">AP <span>Triage</span> Agent</div>
+  </div>
+  <div class="header-right">
+    <div class="status-dot"></div>
+    <div class="status-text">CONNECTED · SUPABASE</div>
+  </div>
+</header>
+<div class="main">
+  <div class="left-panel">
+    <div class="left-top">
+      <button class="load-btn" onclick="loadBatch()">⬇ Load Invoice Batch</button>
+      <div class="batch-info" id="batchInfo">
+        <div class="batch-row"><span class="batch-label">PERIOD</span><span class="batch-value" id="bPeriod">—</span></div>
+        <div class="batch-row"><span class="batch-label">TOTAL</span><span class="batch-value ok" id="bTotal">—</span></div>
+        <div class="batch-row"><span class="batch-label">FLAGGED</span><span class="batch-value flagged" id="bFlagged">—</span></div>
+        <div class="batch-row"><span class="batch-label">TOTAL SPEND</span><span class="batch-value" id="bSpend">—</span></div>
+      </div>
+    </div>
+    <div class="chat-area">
+      <div class="chat-messages" id="chatMessages"></div>
+      <div class="chat-input-area">
+        <input class="chat-input" id="chatInput" placeholder="Ask about your invoices..." disabled onkeydown="handleKey(event)">
+        <button class="send-btn" id="sendBtn" onclick="sendMessage()" disabled>➤</button>
+      </div>
+      <div class="suggestions" id="suggestions" style="display:none;">
+        <div class="suggestion-label">Try asking</div>
+        <div class="suggestion-chip" onclick="sendSuggestion(this)">Show me all flagged invoices</div>
+        <div class="suggestion-chip" onclick="sendSuggestion(this)">Are there any duplicates?</div>
+        <div class="suggestion-chip" onclick="sendSuggestion(this)">Which invoices are high value?</div>
+        <div class="suggestion-chip" onclick="sendSuggestion(this)">Any threshold split suspects?</div>
+      </div>
+    </div>
+  </div>
+  <div class="right-panel">
+    <div class="right-panel-inner" id="rightPanel">
+      <div class="empty-state" id="emptyState">
+        <div class="empty-icon">📂</div>
+        <div class="empty-text">Click "Load Invoice Batch"<br>to begin triage session</div>
+      </div>
+    </div>
+  </div>
+</div>
 
-    if st.button("⬇  Load Invoice Batch"):
-        with st.spinner("Loading..."):
-            result = api_load_batch()
-            if result:
-                st.session_state.batch_loaded = True
-                st.session_state.batch_info = result.get("batch_info", {})
-                st.session_state.table_data = result.get("table_data")
-                st.session_state.chart_data = result.get("chart_data")
-                st.session_state.right_panel_view = "all"
-                st.session_state.messages = [{
-                    "role": "agent",
-                    "text": result.get("message", "Invoice batch loaded. Ask me anything.")
-                }]
+<script>
+const FASTAPI_URL = "{FASTAPI_URL}";
+let batchLoaded = false;
+let barChart = null;
+let pieChart = null;
 
-    if st.session_state.batch_loaded and st.session_state.batch_info:
-        info = st.session_state.batch_info
-        st.markdown(f"""
-        <div class="batch-box">
-            <div class="batch-row"><span class="bl">PERIOD</span><span class="bv">{info.get('period','—')}</span></div>
-            <div class="batch-row"><span class="bl">TOTAL</span><span class="bvg">{info.get('total','—')} invoices</span></div>
-            <div class="batch-row"><span class="bl">FLAGGED</span><span class="bvo">{info.get('flagged','—')} invoices</span></div>
-            <div class="batch-row"><span class="bl">TOTAL SPEND</span><span class="bv">{info.get('spend','—')}</span></div>
+async function loadBatch() {{
+  if (batchLoaded) return;
+  try {{
+    const res = await fetch(FASTAPI_URL + '/load-batch');
+    const data = await res.json();
+    const info = data.batch_info || {{}};
+    document.getElementById('bPeriod').innerText = info.period || '—';
+    document.getElementById('bTotal').innerText = (info.total || '—') + ' invoices';
+    document.getElementById('bFlagged').innerText = (info.flagged || '—') + ' invoices';
+    document.getElementById('bSpend').innerText = info.spend || '—';
+    document.getElementById('batchInfo').classList.add('visible');
+    document.getElementById('chatInput').disabled = false;
+    document.getElementById('sendBtn').disabled = false;
+    document.getElementById('suggestions').style.display = 'flex';
+    document.getElementById('suggestions').style.flexDirection = 'column';
+    batchLoaded = true;
+    addMessage('agent', data.message || 'Invoice batch loaded. Ask me anything about this batch.');
+    showDashboard(data);
+  }} catch(e) {{
+    alert('Could not connect to backend: ' + e.message);
+  }}
+}}
+
+async function sendMessage() {{
+  const input = document.getElementById('chatInput');
+  const text = input.value.trim();
+  if (!text || !batchLoaded) return;
+  document.getElementById('suggestions').style.display = 'none';
+  addMessage('user', text);
+  input.value = '';
+  const typingEl = addTyping();
+  try {{
+    const res = await fetch(FASTAPI_URL + '/triage', {{
+      method: 'POST',
+      headers: {{'Content-Type': 'application/json'}},
+      body: JSON.stringify({{question: text}})
+    }});
+    const data = await res.json();
+    typingEl.remove();
+    addMessage('agent', data.answer || '');
+    showResult(data);
+  }} catch(e) {{
+    typingEl.remove();
+    addMessage('agent', 'Sorry, could not reach the backend.');
+  }}
+}}
+
+function sendSuggestion(el) {{
+  document.getElementById('chatInput').value = el.innerText;
+  sendMessage();
+}}
+
+function handleKey(e) {{ if (e.key === 'Enter') sendMessage(); }}
+
+function addMessage(role, text) {{
+  const msgs = document.getElementById('chatMessages');
+  const now = new Date().toLocaleTimeString([], {{hour:'2-digit', minute:'2-digit'}});
+  const div = document.createElement('div');
+  div.className = 'msg ' + role;
+  div.innerHTML = '<div class="msg-bubble">' + text + '</div><div class="msg-time">' + now + '</div>';
+  msgs.appendChild(div);
+  msgs.scrollTop = msgs.scrollHeight;
+  return div;
+}}
+
+function addTyping() {{
+  const msgs = document.getElementById('chatMessages');
+  const div = document.createElement('div');
+  div.className = 'msg agent';
+  div.innerHTML = '<div class="typing"><span></span><span></span><span></span></div>';
+  msgs.appendChild(div);
+  msgs.scrollTop = msgs.scrollHeight;
+  return div;
+}}
+
+function showDashboard(data) {{
+  const panel = document.getElementById('rightPanel');
+  const info = data.batch_info || {{}};
+  const rows = (data.table_data || []).map(r =>
+    '<tr>' + Object.values(r).map(v => '<td>' + v + '</td>').join('') + '</tr>'
+  ).join('');
+  const headers = data.table_data && data.table_data.length > 0
+    ? '<tr>' + Object.keys(data.table_data[0]).map(k => '<th>' + k + '</th>').join('') + '</tr>'
+    : '';
+  panel.innerHTML = `
+    <div class="summary-cards">
+      <div class="card"><div class="card-label">Total Invoices</div><div class="card-value blue">${{info.total||'—'}}</div><div class="card-sub">${{info.period||''}}</div></div>
+      <div class="card"><div class="card-label">Flagged</div><div class="card-value orange">${{info.flagged||'—'}}</div><div class="card-sub">Need attention</div></div>
+      <div class="card"><div class="card-label">Clear</div><div class="card-value green">${{info.clear||'—'}}</div><div class="card-sub">Ready to process</div></div>
+      <div class="card"><div class="card-label">Total Spend</div><div class="card-value blue">${{info.spend||'—'}}</div><div class="card-sub">Across all invoices</div></div>
+    </div>
+    <div class="table-wrap">
+      <div class="table-header-bar">
+        <div class="table-title">All Invoices</div>
+        <div class="table-count">${{(data.table_data||[]).length}} records</div>
+      </div>
+      <table><thead>${{headers}}</thead><tbody>${{rows}}</tbody></table>
+    </div>
+    <div class="charts-row">
+      <div class="chart-box"><div class="chart-title">Spend by Vendor</div><div class="chart-container"><canvas id="barChart"></canvas></div></div>
+      <div class="chart-box"><div class="chart-title">Flag Type Breakdown</div><div class="chart-container"><canvas id="pieChart"></canvas></div></div>
+    </div>`;
+  if (data.chart_data) setTimeout(() => renderCharts(data.chart_data), 100);
+}}
+
+function showResult(data) {{
+  const panel = document.getElementById('rightPanel');
+  const rows = (data.table_data || []).map(r =>
+    '<tr>' + Object.values(r).map(v => '<td>' + v + '</td>').join('') + '</tr>'
+  ).join('');
+  const headers = data.table_data && data.table_data.length > 0
+    ? '<tr>' + Object.keys(data.table_data[0]).map(k => '<th>' + k + '</th>').join('') + '</tr>'
+    : '';
+  let html = '';
+  if (data.table_data && data.table_data.length > 0) {{
+    html += `
+      <div class="table-wrap">
+        <div class="table-header-bar">
+          <div class="table-title">Results</div>
+          <div class="table-count">${{data.table_data.length}} records</div>
         </div>
-        """, unsafe_allow_html=True)
+        <table><thead>${{headers}}</thead><tbody>${{rows}}</tbody></table>
+      </div>`;
+  }}
+  panel.innerHTML = html || '<div class="empty-state"><div class="empty-text">No data to display</div></div>';
+  if (data.chart_data) {{
+    panel.innerHTML += `
+      <div class="charts-row">
+        <div class="chart-box"><div class="chart-title">Chart</div><div class="chart-container"><canvas id="barChart"></canvas></div></div>
+        <div class="chart-box"><div class="chart-title">Breakdown</div><div class="chart-container"><canvas id="pieChart"></canvas></div></div>
+      </div>`;
+    setTimeout(() => renderCharts(data.chart_data), 100);
+  }}
+}}
 
-    for msg in st.session_state.messages:
-        if msg["role"] == "user":
-            st.markdown(f'<div class="chat-u"><div class="bu">{msg["text"]}</div></div>', unsafe_allow_html=True)
-        else:
-            st.markdown(f'<div class="chat-a"><div class="ba">{msg["text"]}</div></div>', unsafe_allow_html=True)
+function renderCharts(chartData) {{
+  const barCtx = document.getElementById('barChart');
+  const pieCtx = document.getElementById('pieChart');
+  if (barCtx && chartData.bar) {{
+    if (barChart) barChart.destroy();
+    barChart = new Chart(barCtx, {{
+      type: 'bar',
+      data: {{
+        labels: chartData.bar.labels,
+        datasets: [{{ data: chartData.bar.values, backgroundColor: ['#3b82f6','#6366f1','#f59e0b','#10b981','#ef4444'], borderRadius: 4, borderSkipped: false }}]
+      }},
+      options: {{
+        responsive: true, maintainAspectRatio: false,
+        plugins: {{ legend: {{ display: false }} }},
+        scales: {{
+          x: {{ ticks: {{ color: '#64748b', font: {{ size: 9 }} }}, grid: {{ color: '#1e2740' }} }},
+          y: {{ ticks: {{ color: '#64748b', font: {{ size: 9 }} }}, grid: {{ color: '#1e2740' }} }}
+        }}
+      }}
+    }});
+  }}
+  if (pieCtx && chartData.pie) {{
+    if (pieChart) pieChart.destroy();
+    pieChart = new Chart(pieCtx, {{
+      type: 'doughnut',
+      data: {{
+        labels: chartData.pie.labels,
+        datasets: [{{ data: chartData.pie.values, backgroundColor: ['#f59e0b','#ef4444','#6366f1','#3b82f6','#10b981'], borderWidth: 0 }}]
+      }},
+      options: {{
+        responsive: true, maintainAspectRatio: false,
+        plugins: {{ legend: {{ position: 'right', labels: {{ color: '#64748b', font: {{ size: 9 }}, boxWidth: 10, padding: 8 }} }} }}
+      }}
+    }});
+  }}
+}}
+</script>
+</body>
+</html>
+"""
 
-    if st.session_state.batch_loaded:
-        if not st.session_state.suggestions_hidden:
-            st.markdown('<div class="sug-label">Try asking</div>', unsafe_allow_html=True)
-            for s in [
-                "Show me all flagged invoices",
-                "Are there any duplicates?",
-                "Which invoices are high value?",
-                "Any threshold split suspects?"
-            ]:
-                if st.button(s, key=f"sug_{s}"):
-                    st.session_state.suggestions_hidden = True
-                    st.session_state.messages.append({"role": "user", "text": s})
-                    with st.spinner("Thinking..."):
-                        result = api_ask(s)
-                    if result:
-                        st.session_state.messages.append({"role": "agent", "text": result.get("answer", "")})
-                        st.session_state.table_data = result.get("table_data")
-                        st.session_state.chart_data = result.get("chart_data")
-                        st.session_state.right_panel_view = "result"
-                    st.rerun()
-
-        user_input = st.text_input("", placeholder="Ask about your invoices...", label_visibility="collapsed", key="chat_input")
-        send = st.button("Send ➤", key="send_btn")
-
-        if send and user_input:
-            st.session_state.suggestions_hidden = True
-            st.session_state.messages.append({"role": "user", "text": user_input})
-            with st.spinner("Thinking..."):
-                result = api_ask(user_input)
-            if result:
-                st.session_state.messages.append({"role": "agent", "text": result.get("answer", "")})
-                st.session_state.table_data = result.get("table_data")
-                st.session_state.chart_data = result.get("chart_data")
-                st.session_state.right_panel_view = "result"
-            st.rerun()
-
-    st.markdown('</div>', unsafe_allow_html=True)
-
-# ── RIGHT PANEL ───────────────────────────────────────────────────────────────
-with right_col:
-    st.markdown('<div style="background:#0a0d14; padding:16px; min-height:100vh;">', unsafe_allow_html=True)
-
-    view = st.session_state.right_panel_view
-
-    if view == "empty":
-        st.markdown("""
-        <div class="empty-state">
-            <div class="empty-icon">📂</div>
-            <div class="empty-text">Click "Load Invoice Batch"<br>to begin triage session</div>
-        </div>
-        """, unsafe_allow_html=True)
-
-    elif view == "all":
-        if st.session_state.batch_info:
-            render_summary_cards(st.session_state.batch_info)
-        if st.session_state.table_data is not None:
-            render_table("All Invoices", pd.DataFrame(st.session_state.table_data))
-        if st.session_state.chart_data:
-            render_charts(st.session_state.chart_data)
-
-    elif view == "result":
-        if st.session_state.table_data is not None:
-            render_table("Results", pd.DataFrame(st.session_state.table_data))
-        if st.session_state.chart_data:
-            render_charts(st.session_state.chart_data)
-
-    st.markdown('</div>', unsafe_allow_html=True)
+components.html(html, height=800, scrolling=False)
