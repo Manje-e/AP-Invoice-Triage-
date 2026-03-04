@@ -239,9 +239,10 @@ async function loadBatch() {{
     const data = await res.json();
     const info = data.batch_info || {{}};
     document.getElementById('bPeriod').innerText = info.period || '—';
-    document.getElementById('bTotal').innerText = (info.total || '—') + ' invoices';
-    document.getElementById('bFlagged').innerText = (info.flagged || '—') + ' invoices';
-    document.getElementById('bSpend').innerText = info.spend || '—';
+    document.getElementById('bTotal').innerText = (info.total_invoices || '—') + ' invoices';
+    document.getElementById('bFlagged').innerText = (info.total_flagged || '—') + ' invoices';
+    const spend = info.total_spend ? 'Rs.' + Number(info.total_spend).toLocaleString('en-IN') : '—';
+    document.getElementById('bSpend').innerText = spend;
     document.getElementById('batchInfo').classList.add('visible');
     document.getElementById('chatInput').disabled = false;
     document.getElementById('sendBtn').disabled = false;
@@ -310,61 +311,72 @@ function addTyping() {{
 function showDashboard(data) {{
   const panel = document.getElementById('rightPanel');
   const info = data.batch_info || {{}};
-  const rows = (data.table_data || []).map(r =>
-    '<tr>' + Object.values(r).map(v => '<td>' + v + '</td>').join('') + '</tr>'
+  const spend = info.total_spend ? 'Rs.' + Number(info.total_spend).toLocaleString('en-IN') : '—';
+
+  // Build flag breakdown table
+  const flagRows = (data.flag_breakdown || []).map(r =>
+    `<tr><td>${{r.flag_type}}</td><td>${{r.count}}</td></tr>`
   ).join('');
-  const headers = data.table_data && data.table_data.length > 0
-    ? '<tr>' + Object.keys(data.table_data[0]).map(k => '<th>' + k + '</th>').join('') + '</tr>'
-    : '';
+
+  // Build chart data from backend
+  const deptData = data.dept_spend || [];
+  const flagData = data.flag_breakdown || [];
+  const chartData = {{
+    bar: {{
+      labels: deptData.map(d => d.department),
+      values: deptData.map(d => d.spend)
+    }},
+    pie: {{
+      labels: flagData.map(d => d.flag_type),
+      values: flagData.map(d => d.count)
+    }}
+  }};
+
   panel.innerHTML = `
     <div class="summary-cards">
-      <div class="card"><div class="card-label">Total Invoices</div><div class="card-value blue">${{info.total||'—'}}</div><div class="card-sub">${{info.period||''}}</div></div>
-      <div class="card"><div class="card-label">Flagged</div><div class="card-value orange">${{info.flagged||'—'}}</div><div class="card-sub">Need attention</div></div>
-      <div class="card"><div class="card-label">Clear</div><div class="card-value green">${{info.clear||'—'}}</div><div class="card-sub">Ready to process</div></div>
-      <div class="card"><div class="card-label">Total Spend</div><div class="card-value blue">${{info.spend||'—'}}</div><div class="card-sub">Across all invoices</div></div>
+      <div class="card"><div class="card-label">Total Invoices</div><div class="card-value blue">${{info.total_invoices||'—'}}</div><div class="card-sub">${{info.period||''}}</div></div>
+      <div class="card"><div class="card-label">Flagged</div><div class="card-value orange">${{info.total_flagged||'—'}}</div><div class="card-sub">Need attention</div></div>
+      <div class="card"><div class="card-label">Clear</div><div class="card-value green">${{info.clear_invoices||'—'}}</div><div class="card-sub">Ready to process</div></div>
+      <div class="card"><div class="card-label">Total Spend</div><div class="card-value blue">${{spend}}</div><div class="card-sub">Across all invoices</div></div>
     </div>
     <div class="table-wrap">
       <div class="table-header-bar">
-        <div class="table-title">All Invoices</div>
-        <div class="table-count">${{(data.table_data||[]).length}} records</div>
+        <div class="table-title">Flag Breakdown</div>
+        <div class="table-count">${{(data.flag_breakdown||[]).length}} flag types</div>
       </div>
-      <table><thead>${{headers}}</thead><tbody>${{rows}}</tbody></table>
+      <table>
+        <thead><tr><th>Flag Type</th><th>Count</th></tr></thead>
+        <tbody>${{flagRows}}</tbody>
+      </table>
     </div>
     <div class="charts-row">
-      <div class="chart-box"><div class="chart-title">Spend by Vendor</div><div class="chart-container"><canvas id="barChart"></canvas></div></div>
+      <div class="chart-box"><div class="chart-title">Spend by Department</div><div class="chart-container"><canvas id="barChart"></canvas></div></div>
       <div class="chart-box"><div class="chart-title">Flag Type Breakdown</div><div class="chart-container"><canvas id="pieChart"></canvas></div></div>
     </div>`;
-  if (data.chart_data) setTimeout(() => renderCharts(data.chart_data), 100);
+  setTimeout(() => renderCharts(chartData), 100);
 }}
 
 function showResult(data) {{
   const panel = document.getElementById('rightPanel');
-  const rows = (data.table_data || []).map(r =>
-    '<tr>' + Object.values(r).map(v => '<td>' + v + '</td>').join('') + '</tr>'
+  const rows_data = (data.data && data.data.rows) ? data.data.rows : [];
+  const rows = rows_data.map(r =>
+    '<tr>' + Object.values(r).map(v => '<td>' + (v === null ? '—' : v) + '</td>').join('') + '</tr>'
   ).join('');
-  const headers = data.table_data && data.table_data.length > 0
-    ? '<tr>' + Object.keys(data.table_data[0]).map(k => '<th>' + k + '</th>').join('') + '</tr>'
+  const headers = rows_data.length > 0
+    ? '<tr>' + Object.keys(rows_data[0]).map(k => '<th>' + k + '</th>').join('') + '</tr>'
     : '';
   let html = '';
-  if (data.table_data && data.table_data.length > 0) {{
+  if (rows_data.length > 0) {{
     html += `
       <div class="table-wrap">
         <div class="table-header-bar">
           <div class="table-title">Results</div>
-          <div class="table-count">${{data.table_data.length}} records</div>
+          <div class="table-count">${{rows_data.length}} records</div>
         </div>
         <table><thead>${{headers}}</thead><tbody>${{rows}}</tbody></table>
       </div>`;
   }}
   panel.innerHTML = html || '<div class="empty-state"><div class="empty-text">No data to display</div></div>';
-  if (data.chart_data) {{
-    panel.innerHTML += `
-      <div class="charts-row">
-        <div class="chart-box"><div class="chart-title">Chart</div><div class="chart-container"><canvas id="barChart"></canvas></div></div>
-        <div class="chart-box"><div class="chart-title">Breakdown</div><div class="chart-container"><canvas id="pieChart"></canvas></div></div>
-      </div>`;
-    setTimeout(() => renderCharts(data.chart_data), 100);
-  }}
 }}
 
 function renderCharts(chartData) {{
