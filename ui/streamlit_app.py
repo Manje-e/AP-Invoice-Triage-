@@ -231,6 +231,7 @@ const FASTAPI_URL = "{FASTAPI_URL}";
 let batchLoaded = false;
 let barChart = null;
 let pieChart = null;
+let conversationHistory = [];
 
 async function loadBatch() {{
   if (batchLoaded) return;
@@ -268,10 +269,12 @@ async function sendMessage() {{
     const res = await fetch(FASTAPI_URL + '/triage', {{
       method: 'POST',
       headers: {{'Content-Type': 'application/json'}},
-      body: JSON.stringify({{question: text}})
+      body: JSON.stringify({{question: text, conversation_history: conversationHistory}})
     }});
     const data = await res.json();
     typingEl.remove();
+    conversationHistory.push({{role: 'user', content: text}});
+    conversationHistory.push({{role: 'assistant', content: data.answer || ''}});
     addMessage('agent', data.answer || '');
     showResult(data);
   }} catch(e) {{
@@ -373,7 +376,9 @@ function showResult(data) {{
           <div class="table-title">Results</div>
           <div class="table-count">${{rows_data.length}} records</div>
         </div>
-        <table><thead>${{headers}}</thead><tbody>${{rows}}</tbody></table>
+        <div style="overflow-x: auto;">
+          <table style="width: auto; min-width: 100%; white-space: nowrap;"><thead>${{headers}}</thead><tbody>${{rows}}</tbody></table>
+        </div>
       </div>`;
   }}
   panel.innerHTML = html || '<div class="empty-state"><div class="empty-text">No data to display</div></div>';
