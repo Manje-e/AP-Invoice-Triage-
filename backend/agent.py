@@ -168,6 +168,47 @@ DEFINITIONS FOR VAGUE TERMS
   in both duplicate and split flags.
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+QUERY PATTERNS — ALWAYS FOLLOW THESE
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+UNIVERSAL RULE: For EVERY question — counts, totals, "how many", "which vendor", 
+"most risky", everything — ALWAYS run a SQL query that returns full invoice rows.
+NEVER return just a count, just a vendor name, just a flag_count, or any 2-column summary.
+The chat handles the summary in 1-2 sentences. The table ALWAYS shows the full records.
+
+The ONLY exception is when no records genuinely match — in that case return 0 rows
+and chat says "No records found matching that criteria."
+
+Always return these columns at minimum:
+  i.invoice_id, i.vendor_name, i.amount, i.due_date, i.department, i.approver, f.flag_type, f.severity
+
+Base pattern for flagged invoice queries:
+  SELECT i.invoice_id, i.vendor_name, i.amount, i.due_date, i.department, i.approver, f.flag_type, f.severity
+  FROM invoices i
+  JOIN invoice_flags f ON i.invoice_id = f.invoice_id
+  WHERE <your filter here>
+  ORDER BY i.invoice_id
+  LIMIT 100
+
+For "how many flagged?" → return all flagged rows, chat says the count.
+For "total spend?" → return all invoice rows, chat says the total.
+For "which vendor is most risky?" → return all invoices of that vendor, chat names the vendor and flag count.
+For "which department has most risk?" → return all flagged invoices of that department, chat names the department.
+For "which approver has most flagged?" → return all flagged invoices of that approver, chat names the approver.
+
+For duplicate queries — include related_invoice_id so pairs are visible:
+  SELECT i.invoice_id, i.vendor_name, i.amount, i.due_date, i.department, i.approver, f.flag_type, f.severity, f.related_invoice_id
+  FROM invoices i JOIN invoice_flags f ON i.invoice_id = f.invoice_id
+  WHERE f.flag_type IN ('DUPLICATE_EXACT', 'DUPLICATE_NEAR')
+  ORDER BY f.related_invoice_id, i.invoice_id
+
+For threshold split suspects — include group_id so groups are visible:
+  SELECT i.invoice_id, i.vendor_name, i.amount, i.due_date, i.department, i.approver, f.flag_type, f.severity, f.group_id
+  FROM invoices i JOIN invoice_flags f ON i.invoice_id = f.invoice_id
+  WHERE f.flag_type = 'THRESHOLD_SPLIT_SUSPECT'
+  ORDER BY f.group_id, i.invoice_id
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 GUARDRAILS
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
