@@ -86,6 +86,18 @@ def load_batch():
             """)
             top_vendors = [dict(row) for row in cur.fetchall()]
 
+            # All invoices with their flag (if any) for dashboard table
+            cur.execute("""
+                SELECT 
+                    i.invoice_id, i.vendor_name, i.amount, i.due_date,
+                    i.department, i.approver,
+                    f.flag_type
+                FROM invoices i
+                LEFT JOIN invoice_flags f ON i.invoice_id = f.invoice_id
+                ORDER BY i.invoice_id
+            """)
+            all_invoices = [dict(row) for row in cur.fetchall()]
+
         conn.close()
 
         total = int(summary['total_invoices'])
@@ -104,6 +116,7 @@ def load_batch():
             "flag_breakdown": flag_breakdown,
             "dept_spend": dept_spend,
             "top_vendors": top_vendors,
+            "all_invoices": all_invoices,
             "message": (
                 f"Invoice batch loaded. {total} invoices found for Jan-Feb 2026, "
                 f"totalling Rs.{total_spend:,.0f}. "
