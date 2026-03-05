@@ -209,16 +209,16 @@ html = f"""
     </div>
     <div class="chat-area">
       <div class="chat-messages" id="chatMessages"></div>
+      <div class="chat-input-area">
+        <input class="chat-input" id="chatInput" placeholder="Ask about your invoices..." disabled onkeydown="handleKey(event)">
+        <button class="send-btn" id="sendBtn" onclick="sendMessage()" disabled>➤</button>
+      </div>
       <div class="suggestions" id="suggestions" style="display:none;">
         <div class="suggestion-label">Try asking</div>
         <div class="suggestion-chip" onclick="sendSuggestion(this)">Show me all flagged invoices</div>
         <div class="suggestion-chip" onclick="sendSuggestion(this)">Are there any duplicates?</div>
         <div class="suggestion-chip" onclick="sendSuggestion(this)">Which invoices are high value?</div>
         <div class="suggestion-chip" onclick="sendSuggestion(this)">Any threshold split suspects?</div>
-      </div>
-      <div class="chat-input-area">
-        <input class="chat-input" id="chatInput" placeholder="Ask about your invoices..." disabled onkeydown="handleKey(event)">
-        <button class="send-btn" id="sendBtn" onclick="sendMessage()" disabled>➤</button>
       </div>
     </div>
   </div>
@@ -242,14 +242,17 @@ let pieChart = null;
 let conversationHistory = [];
 let chartData = null; // Store chart data globally so charts persist
 
-// Keep Render awake — ping every 5 mins
+// Keep Render awake — ping immediately on load, then every 2 mins
+fetch(FASTAPI_URL + '/health').catch(() => {{}});
 setInterval(() => {{
   fetch(FASTAPI_URL + '/health').catch(() => {{}});
-}}, 5 * 60 * 1000);
+}}, 2 * 60 * 1000);
 
 async function loadBatch() {{
-  if (batchLoaded) return;
   try {{
+    const btn = document.querySelector('.load-btn');
+    btn.disabled = true;
+    btn.innerHTML = '⏳ Loading...';
     const res = await fetch(FASTAPI_URL + '/load-batch');
     const data = await res.json();
     const info = data.batch_info || {{}};
@@ -269,6 +272,10 @@ async function loadBatch() {{
     document.getElementById('suggestions').style.flexDirection = 'column';
     batchLoaded = true;
 
+    // Reset button
+    btn.disabled = false;
+    btn.innerHTML = '⬇ Load Invoice Batch';
+
     // Store chart data globally
     const deptData = data.dept_spend || [];
     const flagData = data.flag_breakdown || [];
@@ -277,10 +284,17 @@ async function loadBatch() {{
       pie: {{ labels: flagData.map(d => d.flag_type), values: flagData.map(d => parseInt(d.count)) }}
     }};
 
+    // Reset conversation
+    conversationHistory = [];
+    document.getElementById('chatMessages').innerHTML = '';
+
     addMessage('agent', data.message || 'Invoice batch loaded. Ask me anything about this batch.');
     renderDashboard(data, info, spend);
 
   }} catch(e) {{
+    const btn = document.querySelector('.load-btn');
+    btn.disabled = false;
+    btn.innerHTML = '⬇ Load Invoice Batch';
     alert('Could not connect to backend: ' + e.message);
   }}
 }}
