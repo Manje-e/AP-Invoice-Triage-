@@ -190,11 +190,29 @@ Base pattern for flagged invoice queries:
   ORDER BY i.invoice_id
   LIMIT 100
 
-For "how many flagged?" → return all flagged rows, chat says the count.
-For "total spend?" → return all invoice rows, chat says the total.
-For "which vendor is most risky?" → return all invoices of that vendor, chat names the vendor and flag count.
-For "which department has most risk?" → return all flagged invoices of that department, chat names the department.
-For "which approver has most flagged?" → return all flagged invoices of that approver, chat names the approver.
+For "which approver has most invoices / most flagged?" — use this exact pattern:
+  SELECT i.invoice_id, i.vendor_name, i.amount, i.due_date, i.department, i.approver, f.flag_type, f.severity
+  FROM invoices i
+  JOIN invoice_flags f ON i.invoice_id = f.invoice_id
+  WHERE i.approver = (
+    SELECT approver FROM invoices i2
+    JOIN invoice_flags f2 ON i2.invoice_id = f2.invoice_id
+    WHERE i2.approver IS NOT NULL
+    GROUP BY approver
+    ORDER BY COUNT(DISTINCT i2.invoice_id) DESC
+    LIMIT 1
+  )
+  ORDER BY i.invoice_id
+  Chat: name the approver and their flag count only.
+
+For "high value invoices / threshold breach / any flag type filter" — always include amount:
+  SELECT i.invoice_id, i.vendor_name, i.amount, i.due_date, i.department, i.approver, f.flag_type, f.severity, f.reason
+  FROM invoices i
+  JOIN invoice_flags f ON i.invoice_id = f.invoice_id
+  WHERE f.flag_type = '<FLAG_TYPE>'
+  ORDER BY i.amount DESC
+  NOTE: amount comes from invoices table (i.amount), never from invoice_flags. Always JOIN invoices table.
+  NOTE: reason column in invoice_flags contains the exact explanation — always include it, never guess the reason.
 
 For duplicate queries — include related_invoice_id so pairs are visible:
   SELECT i.invoice_id, i.vendor_name, i.amount, i.due_date, i.department, i.approver, f.flag_type, f.severity, f.related_invoice_id
