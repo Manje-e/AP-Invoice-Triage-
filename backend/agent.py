@@ -260,6 +260,7 @@ def run_agent(user_question: str, conversation_history: list = []) -> dict:
     """
     Takes a user question and conversation history.
     Returns a dict with 'answer' and optionally 'data' (query results).
+    Single SQL call per question — no repeat tool calls.
     """
     messages = [
         {"role": "system", "content": SYSTEM_PROMPT}
@@ -269,40 +270,44 @@ def run_agent(user_question: str, conversation_history: list = []) -> dict:
 
     query_results = None
 
-    while True:
-        response = client.chat.completions.create(
+    # First LLM call — may or may not call SQL tool
+    response = client.chat.completions.create(
+        model="gpt-4o",
+        messages=messages,
+        tools=TOOLS,
+        tool_choice="auto"
+    )
+    message = response.choices[0].message
+
+    # If LLM called SQL tool — execute it once, then get final answer
+    if message.tool_calls:
+        messages.append(message)
+        for tool_call in message.tool_calls:
+            tool_args = json.loads(tool_call.function.arguments)
+            sql_query = tool_args.get("query", "")
+            print(f"\n[Agent] Executing SQL:\n{sql_query}\n")
+            result = execute_sql(sql_query)
+            query_results = result
+            messages.append({
+                "role": "tool",
+                "tool_call_id": tool_call.id,
+                "content": json.dumps(result)
+            })
+
+        # Second LLM call — final answer only, no more tool calls
+        final = client.chat.completions.create(
             model="gpt-4o",
             messages=messages,
             tools=TOOLS,
-            tool_choice="auto"
+            tool_choice="none"  # Force text response, no more SQL
         )
+        answer = final.choices[0].message.content
 
-        message = response.choices[0].message
+    # LLM answered directly without SQL
+    else:
+        answer = message.content
 
-        # LLM wants to call a tool
-        if message.tool_calls:
-            messages.append(message)
-
-            for tool_call in message.tool_calls:
-                tool_name = tool_call.function.name
-                tool_args = json.loads(tool_call.function.arguments)
-
-                if tool_name == "execute_sql":
-                    sql_query = tool_args.get("query", "")
-                    print(f"\n[Agent] Executing SQL:\n{sql_query}\n")
-
-                    result = execute_sql(sql_query)
-                    query_results = result
-
-                    messages.append({
-                        "role": "tool",
-                        "tool_call_id": tool_call.id,
-                        "content": json.dumps(result)
-                    })
-
-        # LLM is done — final text response
-        else:
-            return {
-                "answer": message.content,
-                "data": query_results
-            }
+    return {
+        "answer": answer,
+        "data": query_results
+    }
