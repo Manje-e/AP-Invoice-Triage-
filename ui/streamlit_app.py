@@ -25,7 +25,7 @@ iframe { border: none !important; background: #0a0d14 !important; }
 """, unsafe_allow_html=True)
 
 # ── FastAPI URL ───────────────────────────────────────────────────────────────
-FASTAPI_URL = "https://ap-invoice-triage.onrender.com"
+FASTAPI_URL = "https://ap-invoice-triage-2.onrender.com"
 
 # ── Full HTML UI ──────────────────────────────────────────────────────────────
 html = f"""
