@@ -232,7 +232,7 @@ html = f"""
     <!-- Upload Invoice Section -->
     <div class="upload-section">
       <div class="upload-label">Got a paper invoice or PDF?</div>
-      <input type="file" id="fileInput" accept=".pdf,.jpg,.jpeg,.png,.webp,.tiff,.tif" style="display:none;" onchange="handleFileSelect(event)">
+      <input type="file" id="fileInput" accept=".pdf,.jpg,.jpeg,.png" style="display:none;" onchange="handleFileSelect(event)">
       <button class="upload-btn" id="uploadBtn" onclick="document.getElementById('fileInput').click()">
         ⬆ Upload Invoice
       </button>
@@ -618,9 +618,6 @@ function showResult(data) {{
 }}
 
 function sendSuggestion(el) {{
-  el.style.opacity = '0.4';
-  el.style.cursor = 'not-allowed';
-  el.style.pointerEvents = 'none';
   document.getElementById('chatInput').value = el.innerText;
   sendMessage();
 }}
