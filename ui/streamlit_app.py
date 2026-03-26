@@ -359,7 +359,7 @@ async function reloadBatch() {{
   }} catch(e) {{}}
 }}
 
-
+async function loadBatch() {{
   try {{
     const btn = document.querySelector('.load-btn');
     btn.disabled = true;
