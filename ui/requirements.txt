@@ -2,3 +2,5 @@ streamlit
 requests
 pandas
 plotly
+pymupdf
+python-multipart

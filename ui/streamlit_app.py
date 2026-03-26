@@ -176,7 +176,28 @@ html = f"""
   .chart-container {{ position: relative; height: 180px; }}
 
   /* Typing indicator */
-  .typing {{ display: flex; gap: 3px; padding: 8px 11px; background: var(--surface2); border: 1px solid var(--border); border-radius: 10px; border-bottom-left-radius: 3px; width: fit-content; }}
+  .upload-section {{ padding: 12px 16px; border-top: 1px solid var(--border); }}
+  .upload-label {{ font-size: 10px; color: var(--text-muted); font-family: 'DM Mono', monospace; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 8px; }}
+  .upload-btn {{
+    width: 100%; padding: 8px 16px;
+    background: transparent; border: 1px dashed var(--border);
+    border-radius: 8px; color: var(--text-muted);
+    font-family: 'DM Sans', sans-serif; font-size: 12px;
+    cursor: pointer; transition: all 0.2s; text-align: center;
+  }}
+  .upload-btn:hover {{ border-color: var(--accent); color: var(--text); background: rgba(59,130,246,0.05); }}
+  .upload-btn.has-file {{ border-color: var(--accent); color: var(--text); background: rgba(59,130,246,0.05); }}
+  .submit-upload-btn {{
+    width: 100%; padding: 8px 16px; margin-top: 6px;
+    background: var(--green); border: none; border-radius: 8px;
+    color: white; font-family: 'Syne', sans-serif; font-weight: 600;
+    font-size: 12px; cursor: pointer; transition: all 0.2s; display: none;
+  }}
+  .submit-upload-btn:hover {{ opacity: 0.9; }}
+  .submit-upload-btn:disabled {{ opacity: 0.4; cursor: not-allowed; }}
+  .upload-status {{ font-size: 11px; margin-top: 6px; font-family: 'DM Mono', monospace; display: none; }}
+  .upload-status.success {{ color: var(--green); }}
+  .upload-status.error {{ color: var(--red); }}
   .typing span {{ width: 5px; height: 5px; background: var(--text-muted); border-radius: 50%; animation: bounce 1.2s infinite; }}
   .typing span:nth-child(2) {{ animation-delay: 0.2s; }}
   .typing span:nth-child(3) {{ animation-delay: 0.4s; }}
@@ -207,6 +228,20 @@ html = f"""
         <div class="batch-row"><span class="batch-label">TOTAL SPEND</span><span class="batch-value" id="bSpend">—</span></div>
       </div>
     </div>
+
+    <!-- Upload Invoice Section -->
+    <div class="upload-section">
+      <div class="upload-label">Got a paper invoice or PDF?</div>
+      <input type="file" id="fileInput" accept=".pdf,.jpg,.jpeg,.png" style="display:none;" onchange="handleFileSelect(event)">
+      <button class="upload-btn" id="uploadBtn" onclick="document.getElementById('fileInput').click()">
+        ⬆ Upload Invoice
+      </button>
+      <button class="submit-upload-btn" id="submitUploadBtn" onclick="submitInvoice()">
+        ✓ Submit Invoice
+      </button>
+      <div class="upload-status" id="uploadStatus"></div>
+    </div>
+
     <div class="chat-area">
       <div class="chat-messages" id="chatMessages"></div>
       <div class="chat-input-area">
@@ -248,7 +283,83 @@ setInterval(() => {{
   fetch(FASTAPI_URL + '/health').catch(() => {{}});
 }}, 2 * 60 * 1000);
 
-async function loadBatch() {{
+let selectedFile = null;
+
+function handleFileSelect(event) {{
+  const file = event.target.files[0];
+  if (!file) return;
+  selectedFile = file;
+  const btn = document.getElementById('uploadBtn');
+  btn.innerHTML = '📄 ' + file.name;
+  btn.classList.add('has-file');
+  document.getElementById('submitUploadBtn').style.display = 'block';
+  document.getElementById('uploadStatus').style.display = 'none';
+}}
+
+async function submitInvoice() {{
+  if (!selectedFile) return;
+  const submitBtn = document.getElementById('submitUploadBtn');
+  const statusEl = document.getElementById('uploadStatus');
+  
+  submitBtn.disabled = true;
+  submitBtn.innerHTML = '⏳ Extracting...';
+  statusEl.style.display = 'none';
+
+  try {{
+    const formData = new FormData();
+    formData.append('file', selectedFile);
+
+    const res = await fetch(FASTAPI_URL + '/upload-invoice', {{
+      method: 'POST',
+      body: formData
+    }});
+    const data = await res.json();
+
+    if (data.error) {{
+      statusEl.className = 'upload-status error';
+      statusEl.innerText = '✗ ' + data.error;
+      statusEl.style.display = 'block';
+    }} else {{
+      statusEl.className = 'upload-status success';
+      statusEl.innerText = '✓ ' + data.message;
+      statusEl.style.display = 'block';
+      // Reset file input
+      selectedFile = null;
+      document.getElementById('fileInput').value = '';
+      document.getElementById('uploadBtn').innerHTML = '⬆ Upload Invoice';
+      document.getElementById('uploadBtn').classList.remove('has-file');
+      submitBtn.style.display = 'none';
+      // Add message to chat
+      addMessage('agent', data.message);
+      // Reload batch to refresh table
+      if (batchLoaded) {{
+        reloadBatch();
+      }}
+    }}
+  }} catch(e) {{
+    statusEl.className = 'upload-status error';
+    statusEl.innerText = '✗ Could not reach backend.';
+    statusEl.style.display = 'block';
+  }}
+
+  submitBtn.disabled = false;
+  submitBtn.innerHTML = '✓ Submit Invoice';
+}}
+
+async function reloadBatch() {{
+  try {{
+    const res = await fetch(FASTAPI_URL + '/load-batch');
+    const data = await res.json();
+    const info = data.batch_info || {{}};
+    document.getElementById('bTotal').innerText = (info.total_invoices || '—') + ' invoices';
+    document.getElementById('bFlagged').innerText = (info.total_flagged || '—') + ' invoices';
+    const spend = info.total_spend ? 'Rs.' + Number(info.total_spend).toLocaleString('en-IN') : '—';
+    document.getElementById('bSpend').innerText = spend;
+    showDashboard(data);
+  }} catch(e) {{}}
+}}
+
+
   try {{
     const btn = document.querySelector('.load-btn');
     btn.disabled = true;
