@@ -329,8 +329,8 @@ async function submitInvoice() {{
       document.getElementById('uploadBtn').innerHTML = '⬆ Upload Invoice';
       document.getElementById('uploadBtn').classList.remove('has-file');
       submitBtn.style.display = 'none';
-      // Add message to chat — keep it simple, no flag details
-      addMessage('agent', '✓ Invoice added successfully.');
+      // Add message to chat
+      addMessage('agent', data.message);
       // Reload batch to refresh table
       if (batchLoaded) {{
         reloadBatch();
@@ -351,56 +351,11 @@ async function reloadBatch() {{
     const res = await fetch(FASTAPI_URL + '/load-batch');
     const data = await res.json();
     const info = data.batch_info || {{}};
-
-    // Update left panel counts
     document.getElementById('bTotal').innerText = (info.total_invoices || '—') + ' invoices';
     document.getElementById('bFlagged').innerText = (info.total_flagged || '—') + ' invoices';
     const spend = info.total_spend ? 'Rs.' + Number(info.total_spend).toLocaleString('en-IN') : '—';
     document.getElementById('bSpend').innerText = spend;
-
-    // Update summary cards if they exist
-    const cardEls = document.querySelectorAll('.card-value');
-    if (cardEls.length >= 4) {{
-      cardEls[0].innerText = info.total_invoices || '—';
-      cardEls[1].innerText = info.total_flagged || '—';
-      cardEls[2].innerText = info.clear_invoices || '—';
-      cardEls[3].innerText = spend;
-    }}
-
-    // Rebuild invoice table only, leave charts untouched
-    const invoices = data.all_invoices || [];
-    const invoiceRows = invoices.map(r => {{
-      const flagBadge = r.flag_type
-        ? `<span style="background:rgba(245,158,11,0.15);color:#f59e0b;padding:2px 6px;border-radius:4px;font-size:10px;">${{r.flag_type}}</span>`
-        : `<span style="background:rgba(16,185,129,0.15);color:#10b981;padding:2px 6px;border-radius:4px;font-size:10px;">CLEAR</span>`;
-      const amt = r.amount ? 'Rs.' + Number(r.amount).toLocaleString('en-IN') : '—';
-      return `<tr>
-        <td>${{r.invoice_id}}</td>
-        <td>${{r.vendor_name}}</td>
-        <td>${{amt}}</td>
-        <td>${{r.due_date || '—'}}</td>
-        <td>${{r.department || '—'}}</td>
-        <td>${{r.approver || '—'}}</td>
-        <td>${{flagBadge}}</td>
-      </tr>`;
-    }}).join('');
-
-    const mainSection = document.getElementById('mainTableSection');
-    if (mainSection) {{
-      mainSection.innerHTML = `
-        <div class="table-wrap">
-          <div class="table-header-bar">
-            <div class="table-title">All Invoices</div>
-            <div class="table-count">${{invoices.length}} records</div>
-          </div>
-          <div style="overflow-x:auto; overflow-y:auto; max-height:300px;">
-            <table style="width:auto; min-width:100%; white-space:nowrap;">
-              <thead><tr><th>ID</th><th>Vendor</th><th>Amount</th><th>Due Date</th><th>Department</th><th>Approver</th><th>Flag</th></tr></thead>
-              <tbody>${{invoiceRows}}</tbody>
-            </table>
-          </div>
-        </div>`;
-    }}
+    showDashboard(data);
   }} catch(e) {{}}
 }}
 
