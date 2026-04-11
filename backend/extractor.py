@@ -122,6 +122,36 @@ Invoice text:
         return None
 
 
+# ── Text Quality Check ────────────────────────────────────────────────────────
+def is_useful_text(text: str) -> bool:
+    """
+    Returns True only if extracted PDF text looks like real invoice content.
+    Prevents sending garbled OCR or header-only text to GPT-4o text parse.
+
+    Rules:
+    - Must be at least 80 characters
+    - Must have at least 5 non-empty lines (not just whitespace/headers)
+    - Must contain at least one numeric pattern (likely an amount or date)
+    - Must not be more than 80% non-ASCII (garbled scan artifact)
+    """
+    if len(text) < 80:
+        return False
+
+    lines = [l.strip() for l in text.splitlines() if l.strip()]
+    if len(lines) < 5:
+        return False
+
+    import re
+    if not re.search(r'\d{2,}', text):  # at least one number with 2+ digits
+        return False
+
+    non_ascii = sum(1 for c in text if ord(c) > 127)
+    if non_ascii / len(text) > 0.8:
+        return False
+
+    return True
+
+
 # ── Main Extraction Function ───────────────────────────────────────────────────
 def decide_and_extract(file_bytes: bytes, filename: str) -> dict:
     """
@@ -138,9 +168,17 @@ def decide_and_extract(file_bytes: bytes, filename: str) -> dict:
     ext = filename.lower().split(".")[-1]
 
     # ── Image file → straight to GPT-4o Vision ────────────────────────────────
-    if ext in ["jpg", "jpeg", "png"]:
-        media_type = "image/jpeg" if ext in ["jpg", "jpeg"] else "image/png"
-        print(f"[Extractor] Image file detected — sending to GPT-4o Vision")
+    IMAGE_TYPES = {
+        "jpg": "image/jpeg",
+        "jpeg": "image/jpeg",
+        "png": "image/png",
+        "webp": "image/webp",
+        "tiff": "image/tiff",
+        "tif": "image/tiff",
+    }
+    if ext in IMAGE_TYPES:
+        media_type = IMAGE_TYPES[ext]
+        print(f"[Extractor] Image file ({ext}) detected — sending to GPT-4o Vision")
         return extract_with_gpt4o(file_bytes, media_type)
 
     # ── PDF file → try PyMuPDF first ──────────────────────────────────────────
@@ -148,9 +186,9 @@ def decide_and_extract(file_bytes: bytes, filename: str) -> dict:
         print(f"[Extractor] PDF detected — trying PyMuPDF first")
         text = extract_text_from_pdf(file_bytes)
 
-        if len(text) >= 50:
-            # Good text extracted — parse with GPT-4o text (no vision needed)
-            print(f"[Extractor] Text extracted ({len(text)} chars) — parsing with GPT-4o text")
+        if is_useful_text(text):
+            # Quality check passed — parse with GPT-4o text (no vision needed)
+            print(f"[Extractor] Text quality check passed ({len(text)} chars) — parsing with GPT-4o text")
             result = parse_fields_from_text(text)
             if result and result.get("amount") and result.get("vendor_name"):
                 return result

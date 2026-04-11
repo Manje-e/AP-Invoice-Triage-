@@ -151,8 +151,8 @@ async def upload_invoice(file: UploadFile = File(...)):
 
         # Check file type
         ext = filename.lower().split(".")[-1]
-        if ext not in ["pdf", "jpg", "jpeg", "png"]:
-            return {"error": "Unsupported file type. Please upload PDF, JPG, or PNG only."}
+        if ext not in ["pdf", "jpg", "jpeg", "png", "webp", "tiff", "tif"]:
+            return {"error": "Unsupported file type. Please upload PDF, JPG, PNG, WEBP, or TIFF only."}
 
         # Extract fields
         extracted = decide_and_extract(file_bytes, filename)
@@ -166,6 +166,19 @@ async def upload_invoice(file: UploadFile = File(...)):
         # Generate new invoice_id
         conn = get_connection()
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+
+            # Duplicate check — block insert if invoice_number + vendor_name already exists
+            if extracted.get("invoice_number"):
+                cur.execute("""
+                    SELECT invoice_id FROM invoices
+                    WHERE invoice_number = %s AND vendor_name = %s
+                """, (extracted["invoice_number"], extracted["vendor_name"]))
+                existing = cur.fetchone()
+                if existing:
+                    conn.close()
+                    return {
+                        "error": f"Duplicate invoice — {extracted['invoice_number']} from {extracted['vendor_name']} already exists in the system ({existing['invoice_id']})."
+                    }
 
             # Get next invoice number
             cur.execute("SELECT COUNT(*) as total FROM invoices")
