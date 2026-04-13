@@ -319,6 +319,12 @@ async function submitInvoice() {{
       statusEl.className = 'upload-status error';
       statusEl.innerText = '✗ ' + data.error;
       statusEl.style.display = 'block';
+      // Reset upload UI so user can try a different file
+      selectedFile = null;
+      document.getElementById('fileInput').value = '';
+      document.getElementById('uploadBtn').innerHTML = '⬆ Upload Invoice';
+      document.getElementById('uploadBtn').classList.remove('has-file');
+      submitBtn.style.display = 'none';
     }} else {{
       statusEl.className = 'upload-status success';
       statusEl.innerText = '✓ ' + data.message;
