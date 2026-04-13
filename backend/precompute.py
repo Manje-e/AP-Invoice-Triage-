@@ -217,11 +217,11 @@ def detect_round_amount(invoices, cur):
     for inv in invoices:
         if not inv['amount']: continue
         a = int(inv['amount'])
-        if a >= 10000 and a % 5000 == 0:
+        if a >= 10000 and a % 100000 == 0:
             reason = (
-                f"Invoice from {inv['vendor_name']} for exactly Rs.{a:,} is a suspiciously round number "
-                f"— real invoices typically reflect specific actual costs. Round amounts may indicate "
-                f"estimated billing and warrant verification against supporting documents or purchase orders."
+                f"Invoice from {inv['vendor_name']} for exactly Rs.{a:,} is an exact lakh amount "
+                f"— suspiciously round for a real invoice. Real costs rarely land on perfect lakhs. "
+                f"Request supporting documents and PO verification before processing."
             )
             insert_flag(cur, f"FLG-RNDM-{inv['invoice_id']}", inv['invoice_id'],
                         "ROUND_AMOUNT", "LOW", reason)

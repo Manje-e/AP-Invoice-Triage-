@@ -204,9 +204,9 @@ def check_missing_fields(cur, invoice):
 # ── Check ROUND_AMOUNT ─────────────────────────────────────────────────────────
 def check_round_amount(cur, invoice):
     amount = float(invoice["amount"])
-    if amount >= 10000 and amount % 5000 == 0:
+    if amount >= 10000 and amount % 100000 == 0:
         reason = (f"Invoice from {invoice['vendor_name']} for Rs.{amount:,.0f} "
-                  f"is a suspiciously round amount. Request supporting documents.")
+                  f"is an exact lakh amount — suspiciously round for a real invoice. Request supporting documents and PO verification.")
         insert_flag(cur,
             flag_id=f"FLG-RUND-{invoice['invoice_id']}",
             invoice_id=invoice["invoice_id"],
