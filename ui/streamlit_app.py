@@ -354,6 +354,9 @@ async function submitInvoice() {{
 
 async function reloadBatch() {{
   try {{
+    // Clear upload status
+    const uploadStatus = document.getElementById('uploadStatus');
+    if (uploadStatus) {{ uploadStatus.style.display = 'none'; }}
     const res = await fetch(FASTAPI_URL + '/load-batch');
     const data = await res.json();
     const info = data.batch_info || {{}};
@@ -412,6 +415,9 @@ async function reloadBatch() {{
 
 async function loadBatch() {{
   try {{
+    // Clear upload status
+    const uploadStatus = document.getElementById('uploadStatus');
+    if (uploadStatus) {{ uploadStatus.style.display = 'none'; }}
     const btn = document.querySelector('.load-btn');
     btn.disabled = true;
     btn.innerHTML = '⏳ Loading...';
