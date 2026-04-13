@@ -177,7 +177,18 @@ def decide_and_extract(file_bytes: bytes, filename: str) -> dict:
         "tif": "image/tiff",
     }
     if ext in IMAGE_TYPES:
-        media_type = IMAGE_TYPES[ext]
+        # TIFF not supported by OpenAI Vision API — convert to PNG first
+        if ext in ["tiff", "tif"]:
+            print(f"[Extractor] TIFF detected — converting to PNG for Vision API")
+            from PIL import Image
+            import io
+            img = Image.open(io.BytesIO(file_bytes))
+            buf = io.BytesIO()
+            img.save(buf, format="PNG")
+            file_bytes = buf.getvalue()
+            media_type = "image/png"
+        else:
+            media_type = IMAGE_TYPES[ext]
         print(f"[Extractor] Image file ({ext}) detected — sending to GPT-4o Vision")
         return extract_with_gpt4o(file_bytes, media_type)
 
