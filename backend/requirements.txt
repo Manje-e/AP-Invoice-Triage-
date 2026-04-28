@@ -4,3 +4,8 @@ pydantic
 openai
 psycopg2-binary
 python-dotenv
+pymupdf
+python-multipart
+pillow
+langgraph
+
