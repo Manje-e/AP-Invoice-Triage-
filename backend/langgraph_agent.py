@@ -37,7 +37,10 @@ Routes:
 - "sql"  → The question asks about invoice data, amounts, vendors, flags, departments,
             approvers, counts, totals, or anything that requires querying the database.
             Examples: "show me flagged invoices", "which vendor has the most flags",
-            "how much is at risk", "are there duplicates", "what needs urgent attention"
+            "how much is at risk", "are there duplicates", "what needs urgent attention",
+            "are there any duplicates", "any duplicate invoices", "show me duplicates",
+            "any threshold split suspects", "show me threshold splits", "any splitting activity",
+            "show me all flagged invoices", "which invoices are high value"
 
 - "rag"  → The question asks about company policy, rules, guidelines, approval procedures,
             what should happen, what the policy says, compliance requirements, or vendor
@@ -234,6 +237,24 @@ def sql_node(state: AgentState) -> AgentState:
             sql_query = sql_query[3:]
     sql_query = sql_query.strip()
 
+    # Validate LLM returned actual SQL — if not, force a retry
+    if not sql_query.upper().startswith("SELECT"):
+        print(f"[SQL Node] LLM returned non-SQL, retrying...")
+        retry = client.chat.completions.create(
+            model="gpt-4o",
+            messages=messages + [
+                {"role": "assistant", "content": sql_query},
+                {"role": "user", "content": "Return ONLY the raw SQL SELECT query. No explanation, no text, just the SQL."}
+            ],
+            temperature=0
+        )
+        sql_query = retry.choices[0].message.content.strip()
+        if sql_query.startswith("```"):
+            sql_query = sql_query.split("```")[1]
+            if sql_query.startswith("sql"):
+                sql_query = sql_query[3:]
+        sql_query = sql_query.strip()
+
     print(f"[SQL Node] Executing:\n{sql_query}\n")
 
     result = execute_sql(sql_query)
@@ -286,6 +307,24 @@ def both_node(state: AgentState) -> AgentState:
         if sql_query.startswith("sql"):
             sql_query = sql_query[3:]
     sql_query = sql_query.strip()
+
+    # Validate LLM returned actual SQL — if not, force a retry
+    if not sql_query.upper().startswith("SELECT"):
+        print(f"[Both Node] LLM returned non-SQL, retrying...")
+        retry = client.chat.completions.create(
+            model="gpt-4o",
+            messages=messages + [
+                {"role": "assistant", "content": sql_query},
+                {"role": "user", "content": "Return ONLY the raw SQL SELECT query. No explanation, no text, just the SQL."}
+            ],
+            temperature=0
+        )
+        sql_query = retry.choices[0].message.content.strip()
+        if sql_query.startswith("```"):
+            sql_query = sql_query.split("```")[1]
+            if sql_query.startswith("sql"):
+                sql_query = sql_query[3:]
+        sql_query = sql_query.strip()
 
     print(f"[Both Node] Executing SQL:\n{sql_query}\n")
     sql_result = execute_sql(sql_query)

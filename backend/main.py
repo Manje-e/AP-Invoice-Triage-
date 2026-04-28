@@ -5,7 +5,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from dotenv import load_dotenv
-from langgraph_agent import run_agent
+from agent import run_agent
 
 load_dotenv()
 
@@ -140,9 +140,11 @@ def triage(query: Query):
     Passes question to agent which calls LLM → SQL tool → LLM → answer.
     """
     try:
+        # Cap to last 3 pairs (6 messages) to control token usage
+        capped_history = query.conversation_history[-6:]
         result = run_agent(
             user_question=query.question,
-            conversation_history=query.conversation_history
+            conversation_history=capped_history
         )
         return {
             "answer": result.get("answer", ""),
