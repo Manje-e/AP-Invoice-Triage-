@@ -217,10 +217,10 @@ html = f"""
       </div>
       <div class="suggestions" id="suggestions" style="display:none;">
         <div class="suggestion-label">Try asking</div>
-        <div class="suggestion-chip" onclick="sendSuggestion(this)">Show me all flagged invoices</div>
         <div class="suggestion-chip" onclick="sendSuggestion(this)">Are there any duplicates?</div>
         <div class="suggestion-chip" onclick="sendSuggestion(this)">Which invoices are high value?</div>
-        <div class="suggestion-chip" onclick="sendSuggestion(this)">Any threshold split suspects?</div>
+        <div class="suggestion-chip" onclick="sendSuggestion(this)">What are the invoice approval thresholds?</div>
+        <div class="suggestion-chip" onclick="sendSuggestion(this)">What happens if a vendor has too many flags?</div>
       </div>
     </div>
   </div>
