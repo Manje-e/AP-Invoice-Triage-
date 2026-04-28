@@ -48,9 +48,11 @@ Routes:
             Examples: "what is the approval threshold", "what should we do with duplicates",
             "what does the policy say about round amounts", "how do we handle vendor review"
 
-- "both" → The question requires BOTH invoice data AND policy context together.
-            Examples: "which invoices breach threshold and what does policy say about them",
-            "show me the split suspects and explain what action we should take per policy"
+- "both" → ONLY when the user explicitly uses words like "policy", "guidelines",
+            "what should we do", "what does policy say", "per policy", "according to rules",
+            "what action should we take" alongside a request for invoice data.
+            If the question is just asking to SEE invoices, flags, vendors, or amounts
+            — always route to "sql" even if the topic relates to duplicates or fraud.
 
 Respond with ONLY a valid JSON object — no explanation, no markdown:
 {"route": "sql"} or {"route": "rag"} or {"route": "both"}
@@ -175,9 +177,9 @@ Synthesise the information below into a clear, professional 1-2 sentence respons
 Format currency as Rs.X,XX,XXX (Indian number format).
 Never list invoice IDs, amounts, or field values in your response — the table shows all data.
 Never make legal or vendor termination recommendations.
-If only SQL data is present — summarise what was found (count, key insight).
+If only SQL data is present — summarise what was found (count, key insight). Do NOT add policy guidance unless the user explicitly asked for it.
 If only policy context is present — give the direct policy answer.
-If both are present — combine them naturally: state the data finding, then the policy guidance.
+If both are present — combine them naturally: state the data finding, then the policy guidance. Only include policy if the user explicitly asked for policy alongside the data.
 """
 
 
