@@ -1,5 +1,4 @@
 .env
-rag_ingest.py
 FIN-POL-001_Invoice_Approval_Policy.pdf
 FIN-POL-002_Fraud_Detection_Guidelines.pdf
 PROC-POL-001_Vendor_Guidelines.docx
