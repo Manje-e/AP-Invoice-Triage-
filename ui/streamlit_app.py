@@ -124,6 +124,8 @@ html = f"""
     background: var(--surface2); border: 1px solid var(--border);
     border-radius: 8px; color: var(--text); font-size: 12px;
     font-family: 'DM Sans', sans-serif; outline: none; transition: border-color 0.2s;
+    resize: none; overflow-y: auto; max-height: 80px; min-height: 34px;
+    line-height: 1.5; scrollbar-width: none;
   }}
   .chat-input:focus {{ border-color: var(--accent); }}
   .chat-input::placeholder {{ color: var(--text-dim); }}
@@ -210,7 +212,7 @@ html = f"""
     <div class="chat-area">
       <div class="chat-messages" id="chatMessages"></div>
       <div class="chat-input-area">
-        <input class="chat-input" id="chatInput" placeholder="Ask about your invoices..." disabled onkeydown="handleKey(event)">
+        <textarea class="chat-input" id="chatInput" placeholder="Ask about your invoices..." disabled onkeydown="handleKey(event)" rows="1"></textarea>
         <button class="send-btn" id="sendBtn" onclick="sendMessage()" disabled>➤</button>
       </div>
       <div class="suggestions" id="suggestions" style="display:none;">
@@ -247,6 +249,17 @@ fetch(FASTAPI_URL + '/health').catch(() => {{}});
 setInterval(() => {{
   fetch(FASTAPI_URL + '/health').catch(() => {{}});
 }}, 2 * 60 * 1000);
+
+// Auto-expand textarea as user types
+document.addEventListener('DOMContentLoaded', () => {{
+  const input = document.getElementById('chatInput');
+  if (input) {{
+    input.addEventListener('input', () => {{
+      input.style.height = '34px';
+      input.style.height = Math.min(input.scrollHeight, 80) + 'px';
+    }});
+  }}
+}});
 
 async function loadBatch() {{
   try {{
@@ -444,6 +457,7 @@ async function sendMessage() {{
   if (!text || !batchLoaded) return;
   addMessage('user', text);
   input.value = '';
+  input.style.height = '34px';
   const typingEl = addTyping();
   try {{
     const res = await fetch(FASTAPI_URL + '/triage', {{
@@ -507,11 +521,19 @@ function showResult(data) {{
 }}
 
 function sendSuggestion(el) {{
+  el.style.opacity = '0.4';
+  el.style.cursor = 'not-allowed';
+  el.style.pointerEvents = 'none';
   document.getElementById('chatInput').value = el.innerText;
   sendMessage();
 }}
 
-function handleKey(e) {{ if (e.key === 'Enter') sendMessage(); }}
+function handleKey(e) {{
+  if (e.key === 'Enter' && !e.shiftKey) {{
+    e.preventDefault();
+    sendMessage();
+  }}
+}}
 
 function addMessage(role, text) {{
   const msgs = document.getElementById('chatMessages');
