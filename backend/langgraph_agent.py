@@ -212,11 +212,16 @@ def router_node(state: AgentState) -> AgentState:
 
 
 # ══════════════════════════════════════════════════════════════════════════════
-# NODE 2 — SQL NODE
+# SHARED HELPER — SQL GENERATION + EXECUTION
 # ══════════════════════════════════════════════════════════════════════════════
+# FIX: This logic was previously duplicated between sql_node and the "SQL half"
+# of both_node — same message assembly, same backtick stripping, same SELECT
+# validation + retry, same execute_sql call. Both nodes now call this single
+# helper. Behaviour is identical to before for both nodes; only the print
+# labels differ (each node passes its own label so logs stay distinguishable).
 
-def sql_node(state: AgentState) -> AgentState:
-    print(f"\n[SQL Node] Writing query for: {state['question']}")
+def _generate_and_run_sql(state: AgentState, log_label: str = "SQL Node") -> dict:
+    print(f"\n[{log_label}] Writing query for: {state['question']}")
 
     messages = [
         {"role": "system", "content": SQL_SYSTEM_PROMPT}
@@ -241,7 +246,7 @@ def sql_node(state: AgentState) -> AgentState:
 
     # Validate LLM returned actual SQL — if not, force a retry
     if not sql_query.upper().startswith("SELECT"):
-        print(f"[SQL Node] LLM returned non-SQL, retrying...")
+        print(f"[{log_label}] LLM returned non-SQL, retrying...")
         retry = client.chat.completions.create(
             model="gpt-4o",
             messages=messages + [
@@ -257,11 +262,20 @@ def sql_node(state: AgentState) -> AgentState:
                 sql_query = sql_query[3:]
         sql_query = sql_query.strip()
 
-    print(f"[SQL Node] Executing:\n{sql_query}\n")
+    print(f"[{log_label}] Executing:\n{sql_query}\n")
 
     result = execute_sql(sql_query)
-    print(f"[SQL Node] Rows returned: {result.get('row_count', 0)}")
+    print(f"[{log_label}] Rows returned: {result.get('row_count', 0)}")
 
+    return result
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# NODE 2 — SQL NODE
+# ══════════════════════════════════════════════════════════════════════════════
+
+def sql_node(state: AgentState) -> AgentState:
+    result = _generate_and_run_sql(state, log_label="SQL Node")
     return {"sql_result": result}
 
 
@@ -286,53 +300,15 @@ def rag_node(state: AgentState) -> AgentState:
 # sequentially, populating both sql_result and rag_result in one pass.
 # This is functionally identical to the intended parallel result — both data
 # sources are available for final_answer_node — without broken graph wiring.
+#
+# FIX 2: The "SQL half" here used to be ~40 lines copy-pasted from sql_node.
+# It now just calls the shared _generate_and_run_sql helper above — same for
+# the "RAG half", which is the same one-liner as rag_node.
 
 def both_node(state: AgentState) -> AgentState:
     print(f"\n[Both Node] Running SQL + RAG for: {state['question']}")
 
-    # ── SQL half ──
-    messages = [
-        {"role": "system", "content": SQL_SYSTEM_PROMPT}
-    ] + state.get("conversation_history", []) + [
-        {"role": "user", "content": state["question"]}
-    ]
-
-    response = client.chat.completions.create(
-        model="gpt-4o",
-        messages=messages,
-        temperature=0
-    )
-
-    sql_query = response.choices[0].message.content.strip()
-    if sql_query.startswith("```"):
-        sql_query = sql_query.split("```")[1]
-        if sql_query.startswith("sql"):
-            sql_query = sql_query[3:]
-    sql_query = sql_query.strip()
-
-    # Validate LLM returned actual SQL — if not, force a retry
-    if not sql_query.upper().startswith("SELECT"):
-        print(f"[Both Node] LLM returned non-SQL, retrying...")
-        retry = client.chat.completions.create(
-            model="gpt-4o",
-            messages=messages + [
-                {"role": "assistant", "content": sql_query},
-                {"role": "user", "content": "Return ONLY the raw SQL SELECT query. No explanation, no text, just the SQL."}
-            ],
-            temperature=0
-        )
-        sql_query = retry.choices[0].message.content.strip()
-        if sql_query.startswith("```"):
-            sql_query = sql_query.split("```")[1]
-            if sql_query.startswith("sql"):
-                sql_query = sql_query[3:]
-        sql_query = sql_query.strip()
-
-    print(f"[Both Node] Executing SQL:\n{sql_query}\n")
-    sql_result = execute_sql(sql_query)
-    print(f"[Both Node] SQL rows: {sql_result.get('row_count', 0)}")
-
-    # ── RAG half ──
+    sql_result = _generate_and_run_sql(state, log_label="Both Node")
     chunks = search_documents(state["question"], top_k=4)
     print(f"[Both Node] RAG chunks: {len(chunks.split('---'))}")
 
