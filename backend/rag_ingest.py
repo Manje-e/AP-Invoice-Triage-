@@ -14,11 +14,11 @@ client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 # Filepaths are relative — run this script from the project root.
 POLICY_DOCS = [
     ("FIN-POL-001",  "Invoice Approval and Payment Policy",
-     "FIN-POL-001_Invoice_Approval_Policy.pdf"),
+     "invoice_approval_policy.md"),
     ("FIN-POL-002",  "Invoice Fraud Detection Guidelines",
-     "FIN-POL-002_Fraud_Detection_Guidelines.pdf"),
+     "fraud_detection_guidelines.md"),
     ("PROC-POL-001", "Vendor Onboarding, Management, and Compliance Guidelines",
-     "PROC-POL-001_Vendor_Guidelines.docx"),
+     "vendor_guidelines.md"),
 ]
 
 

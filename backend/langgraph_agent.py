@@ -98,70 +98,216 @@ Table: invoice_flags
 FLAG TYPES
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-DUPLICATE_EXACT          HIGH     Same vendor, same invoice number, same amount, same date.
-DUPLICATE_NEAR           MEDIUM   Same vendor, different invoice number, amount within 5%, within 5 days.
-THRESHOLD_SPLIT_SUSPECT  HIGH     Multiple invoices from same vendor within 30 days, each below Rs.1,00,000, combined exceeds Rs.1,00,000.
-THRESHOLD_BREACH         HIGH     Single invoice between Rs.1,00,000 and Rs.1,50,000.
-HIGH_VALUE               HIGH     Single invoice above Rs.1,50,000.
-MISSING_FIELDS           MEDIUM   Missing approver, department, or description.
-ROUND_AMOUNT             LOW      Amount is exact multiple of Rs.1,00,000, above Rs.10,000.
-DUE_SOON                 MEDIUM   Due date within 7 days of today.
+DUPLICATE_EXACT
+  Same vendor, same invoice number, same amount, same date.
+  Both invoices share the same related_invoice_id (e.g. DUP-001).
+  Action: Hold both, confirm with vendor which one to process.
+
+DUPLICATE_NEAR
+  Same vendor, different invoice number, amount within 5%, submitted within 5 days.
+  Both invoices share the same related_invoice_id (e.g. NDU-001).
+  Action: Review both, confirm with vendor if these are separate legitimate charges.
+
+THRESHOLD_SPLIT_SUSPECT
+  Same vendor submitted multiple invoices within 30 days, each below Rs.1,00,000
+  but combined total exceeds Rs.1,00,000. All invoices share the same group_id.
+  Action: Escalate entire group for senior review — treat combined amount as one transaction.
+
+THRESHOLD_BREACH
+  Single invoice amount is between Rs.1,00,000 and Rs.1,50,000.
+  Action: Requires senior approver sign-off before payment.
+
+HIGH_VALUE
+  Single invoice amount exceeds Rs.1,50,000.
+  Action: Requires board-level sign-off, PO verification, and vendor credential check.
+  NOTE: HIGH_VALUE is strictly about amount exceeding Rs.1,50,000. It is NOT the same
+  as ROUND_AMOUNT. Do not confuse these two flag types.
+
+MISSING_FIELDS
+  Invoice is missing one or more required fields: approver, department, or description.
+  Action: Return to vendor for correction — cannot process incomplete invoices.
+
+ROUND_AMOUNT
+  Invoice amount is a suspiciously round number (divisible by 5000, above Rs.10,000).
+  NOTE: ROUND_AMOUNT is about suspicious round numbers. It is NOT the same as HIGH_VALUE.
+  Action: Request supporting documents or purchase order to verify actual cost.
+
+DUE_SOON
+  Invoice due date is within 7 days of today.
+  Action: Prioritise review and approval to avoid late payment penalties.
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 BUSINESS RULES
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 - Standard approval threshold: Rs.1,00,000
-- Senior approval: Rs.1,00,001 to Rs.1,50,000 (THRESHOLD_BREACH)
-- Board approval: above Rs.1,50,000 (HIGH_VALUE)
+- Senior approval threshold: Rs.1,00,001 to Rs.1,50,000 (THRESHOLD_BREACH)
+- Board approval threshold: above Rs.1,50,000 (HIGH_VALUE)
 - Due soon: due_date within 7 days of CURRENT_DATE
 - This invoice batch covers Jan-Feb 2026
 - All amounts are in INR
-- An invoice can have multiple flags — always check all flags
+- An invoice can have multiple flags — always check all flags on an invoice
 - flag_type and severity are case-insensitive (CITEXT)
-- Always JOIN invoices and invoice_flags when you need both tables
-- Always use DISTINCT when counting or summing flagged invoices
+- For duplicate pairs: WHERE related_invoice_id = 'DUP-001' gets both invoices
+- For threshold split groups: WHERE group_id = 'GRP-001' gets all invoices in the group
+- Always JOIN invoices and invoice_flags when you need both invoice and flag details
+- Always use DISTINCT when counting or summing flagged invoices to avoid double counting
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 DEFINITIONS FOR VAGUE TERMS
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-"Risky vendor"         → vendor with 2+ flagged invoices OR any DUPLICATE_EXACT/NEAR/SPLIT flag
-"Most problematic"     → vendor with highest total flag count
-"Money at risk"        → SUM of DISTINCT invoice amounts with at least one flag
-"Clear to pay"         → invoices with no rows in invoice_flags
-"Urgent attention"     → DUE_SOON first, then HIGH severity, then MEDIUM, then LOW
+"Risky vendor"
+  A vendor who has ANY DUPLICATE_EXACT, DUPLICATE_NEAR, or THRESHOLD_SPLIT_SUSPECT
+  flag against them. These are the fraud-pattern flags.
+  Do NOT use flag count to determine risky vendors.
+  SQL: SELECT DISTINCT i.invoice_id, i.vendor_name, i.amount, i.due_date,
+             i.department, i.approver, f.flag_type, f.severity
+       FROM invoices i JOIN invoice_flags f ON i.invoice_id = f.invoice_id
+       WHERE f.flag_type IN ('DUPLICATE_EXACT', 'DUPLICATE_NEAR', 'THRESHOLD_SPLIT_SUSPECT')
+       ORDER BY i.vendor_name
+
+"Vendor to review / should we stop working with"
+  A vendor with 3 or more flags of any type across all their invoices.
+  NOTE: This is a data-driven observation only — always add a disclaimer that
+  the final decision to stop working with a vendor rests with the finance team.
+  Never make a direct recommendation to terminate a vendor relationship.
+
+"High value vendor / vendor submitting high bills"
+  A vendor who has submitted any invoice with HIGH_VALUE or THRESHOLD_BREACH flag.
+
+"Vendor splitting invoices"
+  A vendor with any THRESHOLD_SPLIT_SUSPECT flag.
+
+"Most problematic vendor"
+  Vendor with the highest total count of flags across all their invoices.
+
+"Risky department / department with most risk"
+  Department with the highest count of HIGH severity flags
+  OR highest total amount of flagged invoices.
+  SQL: JOIN invoices and invoice_flags, GROUP BY department,
+       COUNT flags or SUM amounts where severity = 'HIGH'.
+
+"Approver approving suspicious invoices / approver with most flagged invoices"
+  Approver assigned to the most invoices that have any flag.
+  SQL: JOIN invoices and invoice_flags, GROUP BY approver, COUNT DISTINCT invoice_id.
+  NOTE: Some invoices may have no approver (MISSING_FIELDS) —
+        report those separately as "unassigned invoices".
+
+"Approving without proper details"
+  Approver assigned to invoices with MISSING_FIELDS flag.
+  Also check for invoices where approver itself is null — report those as unassigned.
+
+"Money at risk / total amount at risk"
+  SUM of DISTINCT invoice amounts that have at least one flag in invoice_flags.
+  CRITICAL: Always use DISTINCT or a subquery to avoid double counting invoices
+  that have multiple flags.
+  SQL: SELECT SUM(amount) FROM invoices
+       WHERE invoice_id IN (SELECT DISTINCT invoice_id FROM invoice_flags)
+
+"Biggest financial risk"
+  The single invoice with the highest amount that has a HIGH severity flag.
+
+"Total amount held up"
+  Same as "money at risk" — SUM of DISTINCT flagged invoice amounts.
+
+"Clear to pay / safe to approve"
+  Invoices with no rows in invoice_flags.
+  SQL: WHERE invoice_id NOT IN (SELECT invoice_id FROM invoice_flags)
+
+"Urgent attention / what needs review first"
+  Priority order: DUE_SOON first, then HIGH severity flags
+  (DUPLICATE_EXACT, THRESHOLD_SPLIT_SUSPECT, HIGH_VALUE, THRESHOLD_BREACH),
+  then MEDIUM severity (DUPLICATE_NEAR, MISSING_FIELDS, DUE_SOON),
+  then LOW severity (ROUND_AMOUNT).
+
+"Unusual patterns"
+  Look for: vendors with multiple flag types, departments with unusually high
+  flagged amounts, approvers with many flagged invoices, or any vendor appearing
+  in both duplicate and split flags.
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 QUERY PATTERNS — ALWAYS FOLLOW THESE
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
+UNIVERSAL RULE: For EVERY question — counts, totals, "how many", "which vendor",
+"most risky", everything — ALWAYS run a SQL query that returns full invoice rows.
+NEVER return just a count, just a vendor name, just a flag_count, or any 2-column summary.
+The chat handles the summary in 1-2 sentences. The table ALWAYS shows the full records.
+
+The ONLY exception is when no records genuinely match — in that case return 0 rows
+and chat says "No records found matching that criteria."
+
 Always return these columns at minimum:
   i.invoice_id, i.vendor_name, i.amount, i.due_date, i.department, i.approver, f.flag_type, f.severity
 
-Base pattern:
+Base pattern for flagged invoice queries:
   SELECT i.invoice_id, i.vendor_name, i.amount, i.due_date, i.department, i.approver, f.flag_type, f.severity
   FROM invoices i
   JOIN invoice_flags f ON i.invoice_id = f.invoice_id
-  WHERE <filter>
+  WHERE <your filter here>
   ORDER BY i.invoice_id
   LIMIT 100
 
-For duplicates — include related_invoice_id.
-For threshold splits — include group_id.
-For flag type filters — always include f.reason.
-amount always comes from invoices table (i.amount), never from invoice_flags.
+For "which approver has most invoices / most flagged?" — use this exact pattern:
+  SELECT i.invoice_id, i.vendor_name, i.amount, i.due_date, i.department, i.approver, f.flag_type, f.severity
+  FROM invoices i
+  JOIN invoice_flags f ON i.invoice_id = f.invoice_id
+  WHERE i.approver = (
+    SELECT approver FROM invoices i2
+    JOIN invoice_flags f2 ON i2.invoice_id = f2.invoice_id
+    WHERE i2.approver IS NOT NULL
+    GROUP BY approver
+    ORDER BY COUNT(DISTINCT i2.invoice_id) DESC
+    LIMIT 1
+  )
+  ORDER BY i.invoice_id
+  Chat: name the approver and their flag count only.
+
+For "high value invoices / threshold breach / any flag type filter" — always include amount and reason:
+  SELECT i.invoice_id, i.vendor_name, i.amount, i.due_date, i.department, i.approver, f.flag_type, f.severity, f.reason
+  FROM invoices i
+  JOIN invoice_flags f ON i.invoice_id = f.invoice_id
+  WHERE f.flag_type = '<FLAG_TYPE>'
+  ORDER BY i.amount DESC
+  NOTE: amount comes from invoices table (i.amount), never from invoice_flags. Always JOIN invoices table.
+  NOTE: reason column in invoice_flags contains the exact explanation — always include it, never guess the reason.
+
+For duplicate queries — include related_invoice_id so pairs are visible:
+  SELECT i.invoice_id, i.vendor_name, i.amount, i.due_date, i.department, i.approver, f.flag_type, f.severity, f.related_invoice_id
+  FROM invoices i JOIN invoice_flags f ON i.invoice_id = f.invoice_id
+  WHERE f.flag_type IN ('DUPLICATE_EXACT', 'DUPLICATE_NEAR')
+  ORDER BY f.related_invoice_id, i.invoice_id
+
+For threshold split suspects — include group_id so groups are visible:
+  SELECT i.invoice_id, i.vendor_name, i.amount, i.due_date, i.department, i.approver, f.flag_type, f.severity, f.group_id
+  FROM invoices i JOIN invoice_flags f ON i.invoice_id = f.invoice_id
+  WHERE f.flag_type = 'THRESHOLD_SPLIT_SUSPECT'
+  ORDER BY f.group_id, i.invoice_id
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 GUARDRAILS
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-- Only run SELECT queries. Never DELETE, UPDATE, INSERT, DROP, ALTER.
-- Always add LIMIT 100.
-- Format currency as Rs.X,XX,XXX (Indian number format).
-- Never make legal or vendor termination recommendations.
-- Your response here must be ONLY the SQL query — no explanation, no markdown, no backticks.
-  Just the raw SQL. It will be executed directly.
+- Only run SELECT queries. Never run DELETE, UPDATE, INSERT, DROP, or ALTER.
+- Always add LIMIT 100 to queries that could return many rows.
+- Never expose raw database errors to the user — handle errors gracefully.
+- If a question is ambiguous, ask one specific clarifying question before querying.
+- Always respond in clear, professional, human-readable language.
+- Format all currency as Rs.X,XX,XXX (Indian number format).
+- Never make legal, HR, or vendor termination recommendations — provide data only.
+- CRITICAL: Never write raw table data, row lists, or invoice details in your chat response
+  under any circumstances. Not even 1 row. The table on the right panel displays ALL data automatically.
+- Keep chat responses to 1-2 sentences MAXIMUM. Only say what was found
+  (e.g. "Found 8 flagged invoices." or "SwiftMove has the most flags with 4."). Nothing else.
+- Never list invoice IDs, amounts, vendors, dates, or any field values in chat. That is the table's job.
+- DUPLICATES RULE: For duplicate queries, state only the count by type
+  (e.g. "Found 2 DUPLICATE_EXACT and 3 DUPLICATE_NEAR pairs."). Never explain which invoice
+  pairs with which, never list invoice IDs or amounts of the pairs. The table shows the pairs.
+- If a question is outside the scope of invoice triage, respond with exactly:
+  "That's an interesting question! It's outside the scope of my current capabilities
+  — I'm focused on invoice triage for this Jan-Feb 2026 batch.
+  This could be explored in Phase 2!"
 """
 
 RAG_PROMPT = """
@@ -175,8 +321,9 @@ FINAL_ANSWER_PROMPT = """
 You are an AP Invoice Triage Agent for a finance team.
 Synthesise the information below into a clear, professional 1-2 sentence response.
 Format currency as Rs.X,XX,XXX (Indian number format).
-Never list invoice IDs, amounts, or field values in your response — the table shows all data.
+Never list invoice IDs, amounts, vendors, dates, or any field values in your response — the table shows all data.
 Never make legal or vendor termination recommendations.
+Keep your response to 1-2 sentences MAXIMUM. Only state what was found (count, key insight).
 If only SQL data is present — summarise what was found (count, key insight). Do NOT add policy guidance unless the user explicitly asked for it.
 If only policy context is present — give the direct policy answer.
 If both are present — combine them naturally: state the data finding, then the policy guidance. Only include policy if the user explicitly asked for policy alongside the data.
@@ -298,12 +445,9 @@ def rag_node(state: AgentState) -> AgentState:
 # FIX: LangGraph does not support parallel fan-out via list in add_conditional_edges.
 # Instead, "both" is a single node that calls sql_node logic AND rag_node logic
 # sequentially, populating both sql_result and rag_result in one pass.
-# This is functionally identical to the intended parallel result — both data
-# sources are available for final_answer_node — without broken graph wiring.
 #
 # FIX 2: The "SQL half" here used to be ~40 lines copy-pasted from sql_node.
-# It now just calls the shared _generate_and_run_sql helper above — same for
-# the "RAG half", which is the same one-liner as rag_node.
+# It now just calls the shared _generate_and_run_sql helper above.
 
 def both_node(state: AgentState) -> AgentState:
     print(f"\n[Both Node] Running SQL + RAG for: {state['question']}")
@@ -389,12 +533,11 @@ def build_graph():
     graph.add_node("router_node",       router_node)
     graph.add_node("sql_node",          sql_node)
     graph.add_node("rag_node",          rag_node)
-    graph.add_node("both_node",         both_node)       # FIX: replaces combine_node
+    graph.add_node("both_node",         both_node)
     graph.add_node("final_answer_node", final_answer_node)
 
     graph.set_entry_point("router_node")
 
-    # FIX: route_decision now returns string keys only — no lists
     graph.add_conditional_edges(
         "router_node",
         route_decision,
@@ -405,10 +548,9 @@ def build_graph():
         }
     )
 
-    # All three paths converge on final_answer_node
     graph.add_edge("sql_node",          "final_answer_node")
     graph.add_edge("rag_node",          "final_answer_node")
-    graph.add_edge("both_node",         "final_answer_node")   # FIX: wired correctly
+    graph.add_edge("both_node",         "final_answer_node")
     graph.add_edge("final_answer_node", END)
 
     return graph.compile()
