@@ -144,7 +144,7 @@ BUSINESS RULES
 - Senior approval threshold: Rs.1,00,001 to Rs.1,50,000 (THRESHOLD_BREACH)
 - Board approval threshold: above Rs.1,50,000 (HIGH_VALUE)
 - Due soon: due_date within 7 days of CURRENT_DATE
-- This invoice batch covers Jan-Feb 2026
+- This invoice batch covers May-June 2026
 - All amounts are in INR
 - An invoice can have multiple flags — always check all flags on an invoice
 - flag_type and severity are case-insensitive (CITEXT)
@@ -306,7 +306,7 @@ GUARDRAILS
   pairs with which, never list invoice IDs or amounts of the pairs. The table shows the pairs.
 - If a question is outside the scope of invoice triage, respond with exactly:
   "That's an interesting question! It's outside the scope of my current capabilities
-  — I'm focused on invoice triage for this Jan-Feb 2026 batch.
+  — I'm focused on invoice triage for this May-June 2026 batch.
   This could be explored in Phase 2!"
 """
 

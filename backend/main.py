@@ -28,7 +28,7 @@ def get_connection():
 def health():
     return {"ok": True}
 
-# ── Load Invoice Batch ────────────────────────────────────────────────────────
+# ── Load Invoice Batch ────────────────────────────────────────────────────────    
 @app.get("/load-batch")
 def load_batch():
     """
@@ -106,7 +106,7 @@ def load_batch():
 
         return {
             "batch_info": {
-                "period": "Jan - Feb 2026",
+                "period": "May - June 2026",
                 "total_invoices": total,
                 "total_flagged": flagged_count,
                 "clear_invoices": total - flagged_count,
@@ -118,7 +118,7 @@ def load_batch():
             "top_vendors": top_vendors,
             "all_invoices": all_invoices,
             "message": (
-                f"Invoice batch loaded. {total} invoices found for Jan-Feb 2026, "
+                f"Invoice batch loaded. {total} invoices found for May-June 2026, "
                 f"totalling Rs.{total_spend:,.0f}. "
                 f"{flagged_count} invoices have been flagged for review. "
                 f"Ask me anything about this batch!"
